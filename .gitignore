@@ -1,0 +1,72 @@
+# Miscellaneous
+*.class
+*.log
+*.pyc
+*.swp
+.DS_Store
+.atom/
+.build/
+.buildlog/
+.history
+.svn/
+.swiftpm/
+migrate_working_dir/
+
+# Backup & Junk files (PENTING: untuk menghindari file .old ter-upload)
+*.old
+*.bak
+*.tmp
+thumbs.db
+ehthumbs.db
+
+# IntelliJ / Android Studio related
+*.iml
+*.ipr
+*.iws
+.idea/
+
+# VS Code related
+.vscode/
+
+# Flutter/Dart/Pub related
+**/doc/api/
+**/ios/Flutter/.last_build_id
+.dart_tool/
+.flutter-plugins
+.flutter-plugins-dependencies
+.pub-cache/
+.pub/
+/build/
+/coverage/
+
+# Symbolication related
+app.*.symbols
+
+# Obfuscation related
+app.*.map.json
+
+# Android Specific (Security & Build)
+/android/app/debug
+/android/app/profile
+/android/app/release
+/android/.gradle
+/android/local.properties
+/android/key.properties
+/android/app/google-services.json
+
+# iOS Specific
+/ios/Flutter/Generated.xcconfig
+/ios/Flutter/flutter_export_environment.sh
+/ios/.generated/
+/ios/Podfile.lock
+/ios/Pods/
+
+# Linux Specific (Karena Anda pakai Fedora)
+/linux/flutter/ephemeral/
+
+# Windows Specific (Karena Anda kadang pakai Windows)
+/windows/flutter/ephemeral/
+
+# Web Specific
+/web/icons/
+/web/favicon.png
