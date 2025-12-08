@@ -12,7 +12,7 @@
 .swiftpm/
 migrate_working_dir/
 
-# Backup & Junk files (PENTING: untuk menghindari file .old ter-upload)
+# Backup & Junk files
 *.old
 *.bak
 *.tmp
@@ -45,7 +45,7 @@ app.*.symbols
 # Obfuscation related
 app.*.map.json
 
-# Android Specific (Security & Build)
+# Android Specific (Security & Build - TETAP DI-IGNORE AGAR AMAN)
 /android/app/debug
 /android/app/profile
 /android/app/release
@@ -54,19 +54,11 @@ app.*.map.json
 /android/key.properties
 /android/app/google-services.json
 
-# iOS Specific
-/ios/Flutter/Generated.xcconfig
-/ios/Flutter/flutter_export_environment.sh
-/ios/.generated/
-/ios/Podfile.lock
-/ios/Pods/
-
-# Linux Specific (Karena Anda pakai Fedora)
-/linux/flutter/ephemeral/
-
-# Windows Specific (Karena Anda kadang pakai Windows)
-/windows/flutter/ephemeral/
-
-# Web Specific
-/web/icons/
-/web/favicon.png
+# ==============================================
+# BLOCK NON-ANDROID PLATFORMS
+# ==============================================
+/ios/
+/linux/
+/macos/
+/web/
+/windows/
