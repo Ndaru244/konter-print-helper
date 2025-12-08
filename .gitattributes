@@ -1,0 +1,8 @@
+# Abaikan file HTML, XML, dan JS dari statistik bahasa GitHub
+*.html linguist-vendored
+*.css linguist-vendored
+*.js linguist-vendored
+*.xml linguist-vendored
+
+# Paksa GitHub mendeteksi Dart sebagai bahasa utama
+*.dart linguist-detectable
