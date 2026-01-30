@@ -1,51 +1,22 @@
-# Miscellaneous
-*.class
-*.log
-*.pyc
-*.swp
-.DS_Store
-.atom/
-.build/
-.buildlog/
-.history
-.svn/
-.swiftpm/
-migrate_working_dir/
-
-# Backup & Junk files
-*.old
-*.bak
-*.tmp
-thumbs.db
-ehthumbs.db
-
-# IntelliJ / Android Studio related
-*.iml
-*.ipr
-*.iws
-.idea/
-
-# VS Code related
-.vscode/
-
-# Flutter/Dart/Pub related
-**/doc/api/
-**/ios/Flutter/.last_build_id
+# ==============================================
+# Flutter / Dart / Pub
+# ==============================================
 .dart_tool/
 .flutter-plugins
 .flutter-plugins-dependencies
+.packages
 .pub-cache/
 .pub/
-/build/
-/coverage/
+build/
+coverage/
+**/doc/api/
 
-# Symbolication related
-app.*.symbols
+# iOS build artifacts (blocked, optional for Android-only project)
+**/ios/Flutter/.last_build_id
 
-# Obfuscation related
-app.*.map.json
-
-# Android Specific (Security & Build - TETAP DI-IGNORE AGAR AMAN)
+# ==============================================
+# Android build / local / secrets
+# ==============================================
 /android/app/debug
 /android/app/profile
 /android/app/release
@@ -53,13 +24,54 @@ app.*.map.json
 /android/local.properties
 /android/key.properties
 /android/app/google-services.json
+/android/captures/
+
+# Gradle wrapper logs
+**/gradle-app.setting
 
 # ==============================================
-# BLOCK NON-ANDROID PLATFORMS
+# IDE / Editor files
+# ==============================================
+# IntelliJ / Android Studio
+*.iml
+*.ipr
+*.iws
+.idea/
+
+# VS Code
+.vscode/
+
+# Emacs / Vim / Atom / Sublime
+*.swp
+*~
+.atom/
+.history/
+
+# ==============================================
+# OS generated
+# ==============================================
+.DS_Store
+Thumbs.db
+ehthumbs.db
+
+# ==============================================
+# Miscellaneous
+# ==============================================
+*.class
+*.log
+*.pyc
+*.old
+*.bak
+*.tmp
+migrate_working_dir/
+app.*.symbols
+app.*.map.json
+
+# ==============================================
+# Block non-Android platforms (optional)
 # ==============================================
 /ios/
 /linux/
 /macos/
 /web/
 /windows/
-
