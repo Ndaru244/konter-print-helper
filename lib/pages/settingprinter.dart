@@ -1,7 +1,6 @@
-import 'dart:async';
-
 import 'package:cetak_struk/services/printer_service.dart';
 import 'package:flutter/material.dart';
+// Kita butuh import ini HANYA untuk tipe data BluetoothDevice
 import 'package:blue_thermal_printer/blue_thermal_printer.dart';
 import 'package:provider/provider.dart';
 
@@ -13,217 +12,160 @@ class PrinterSettingPage extends StatefulWidget {
 }
 
 class _PrinterSettingPageState extends State<PrinterSettingPage> {
-  List<BluetoothDevice> devices = [];
-  BluetoothDevice? selectedPrinter;
-  bool isBluetoothOn = false;
 
   @override
   void initState() {
     super.initState();
-
-    final printerService = context.read<PrinterService>();
-    printerService.init();
-
-    _getDevices();
-
-    Timer.periodic(const Duration(seconds: 3), (_) {
-      printerService.checkConnection();
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      context.read<PrinterService>().getBondedDevices();
     });
-  }
-
-  Future<void> _getDevices() async {
-    try {
-      final bluetooth = BlueThermalPrinter.instance;
-      final bool? state = await bluetooth.isOn;
-      final List<BluetoothDevice> pairedDevices = await bluetooth
-          .getBondedDevices();
-
-      setState(() {
-        isBluetoothOn = state ?? false;
-        devices = pairedDevices;
-      });
-    } catch (e) {
-      debugPrint("Error getDevices: $e");
-    }
-  }
-
-  Future<void> _testPrint() async {
-    try {
-      final bluetooth = BlueThermalPrinter.instance;
-      bool? connected = await bluetooth.isConnected;
-      if (connected == true) {
-        await bluetooth.printNewLine();
-        await bluetooth.printCustom("TEST PRINT", 2, 1);
-        await bluetooth.printCustom("Printer OK - 85mm", 1, 1);
-        await bluetooth.printNewLine();
-        await bluetooth.printNewLine();
-        ScaffoldMessenger.of(
-          context,
-        ).showSnackBar(const SnackBar(content: Text("Berhasil Test Print")));
-      } else {
-        ScaffoldMessenger.of(context).showSnackBar(
-          const SnackBar(content: Text("Printer belum tersambung")),
-        );
-      }
-    } catch (e) {
-      debugPrint("Error testPrint: $e");
-    }
   }
 
   @override
   Widget build(BuildContext context) {
     final printerService = context.watch<PrinterService>();
+    final devices = printerService.devices;
+
     return Scaffold(
       appBar: AppBar(
-        backgroundColor: Colors.white,
-        surfaceTintColor: Colors.white,
-        elevation: 0,
-        title: const Text("Setting Printer"),
+        title: const Text("Pengaturan Printer"),
         centerTitle: true,
+        backgroundColor: Colors.white,
+        elevation: 0,
         bottom: PreferredSize(
           preferredSize: const Size.fromHeight(40),
           child: Container(
             width: double.infinity,
-            color: printerService.isConnected
-                ? Colors.green.shade100
-                : Colors.red.shade100,
+            color: printerService.isConnected ? Colors.green.shade100 : Colors.red.shade100,
             padding: const EdgeInsets.all(8),
             child: Text(
               printerService.isConnected
-                  ? "Printer Terhubung"
-                  : "Printer belum tersambung",
+                  ? "Terhubung ke: ${printerService.selectedPrinter?.name ?? 'Unknown'}"
+                  : "Printer Belum Terhubung",
               style: TextStyle(
                 fontWeight: FontWeight.bold,
-                color: printerService.isConnected ? Colors.green : Colors.red,
+                color: printerService.isConnected ? Colors.green[800] : Colors.red[800],
               ),
               textAlign: TextAlign.center,
             ),
           ),
         ),
       ),
-      body: Padding(
-        padding: const EdgeInsets.all(16.0),
-        child: Column(
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
-            Row(
+      body: Column(
+        children: [
+          Padding(
+            padding: const EdgeInsets.all(16.0),
+            child: Row(
               mainAxisAlignment: MainAxisAlignment.spaceBetween,
               children: [
                 Text(
-                  "Status Bluetooth: ${isBluetoothOn ? "Aktif" : "Nonaktif"}",
+                  printerService.isDummyMode ? "Mode: DUMMY (Testing)" : "Mode: LIVE (Bluetooth)",
+                  style: const TextStyle(fontWeight: FontWeight.bold, color: Colors.grey),
                 ),
-                ElevatedButton.icon(
-                  onPressed: _getDevices,
+                TextButton.icon(
+                  onPressed: () {
+                    printerService.getBondedDevices();
+                  },
                   icon: const Icon(Icons.refresh),
-                  label: const Text("Refresh"),
+                  label: const Text("Refresh List"),
                 ),
               ],
             ),
-            const SizedBox(height: 10),
-            Expanded(
-              child: ListView.builder(
-                itemCount: devices.length,
-                itemBuilder: (context, index) {
-                  final device = devices[index];
-                  final isSelected =
-                      printerService.selectedPrinter?.address == device.address;
-                  return ListTile(
-                    title: Text(device.name ?? "Unknown"),
-                    subtitle: Text(device.address ?? ""),
-                    trailing: isSelected
-                        ? const Icon(Icons.check_circle, color: Colors.green)
-                        : null,
-                    onTap: () async {
-                      await printerService.connect(device);
-                    },
-                  );
-                },
+          ),
+
+          // List Devices
+          Expanded(
+            child: devices.isEmpty
+                ? Center(
+              child: Column(
+                mainAxisAlignment: MainAxisAlignment.center,
+                children: const [
+                  Icon(Icons.bluetooth_searching, size: 64, color: Colors.grey),
+                  SizedBox(height: 16),
+                  Text("Tidak ada perangkat Bluetooth ditemukan."),
+                  Text("Pastikan Bluetooth HP menyala & sudah pairing.", style: TextStyle(color: Colors.grey)),
+                ],
               ),
+            )
+                : ListView.separated(
+              itemCount: devices.length,
+              separatorBuilder: (_, __) => const Divider(height: 1),
+              itemBuilder: (context, index) {
+                final device = devices[index];
+                final isSelected = printerService.selectedPrinter?.address == device.address;
+
+                return ListTile(
+                  leading: Icon(
+                      Icons.print,
+                      color: isSelected ? Colors.blue : Colors.grey
+                  ),
+                  title: Text(device.name ?? "Unknown Device", style: const TextStyle(fontWeight: FontWeight.bold)),
+                  subtitle: Text(device.address ?? "-"),
+                  trailing: isSelected
+                      ? const Icon(Icons.check_circle, color: Colors.green)
+                      : ElevatedButton(
+                    onPressed: () {
+                      printerService.connect(device);
+                    },
+                    style: ElevatedButton.styleFrom(backgroundColor: Colors.blue, foregroundColor: Colors.white),
+                    child: const Text("Sambung"),
+                  ),
+                  onTap: () {
+                    printerService.connect(device);
+                  },
+                );
+              },
             ),
-            Row(
-              mainAxisAlignment: MainAxisAlignment.spaceEvenly,
+          ),
+
+          Container(
+            padding: const EdgeInsets.all(16),
+            decoration: BoxDecoration(
+              color: Colors.white,
+              boxShadow: [BoxShadow(color: Colors.grey.shade200, blurRadius: 10, offset: const Offset(0, -5))],
+            ),
+            child: Row(
               children: [
                 Expanded(
-                  child: Padding(
-                    padding: const EdgeInsets.symmetric(horizontal: 8.0),
-                    child: ElevatedButton(
-                      onPressed: _testPrint,
-                      style: ElevatedButton.styleFrom(
-                        backgroundColor: Colors.green,
-                        padding: const EdgeInsets.symmetric(vertical: 16),
-                        shape: RoundedRectangleBorder(
-                          borderRadius: BorderRadius.circular(12),
-                        ),
-                        textStyle: const TextStyle(
-                          fontSize: 16,
-                          fontWeight: FontWeight.bold,
-                        ),
-                      ),
-                      child: const Text(
-                        "Test Print",
-                        style: TextStyle(color: Colors.white),
-                      ),
-                    ),
-                  ),
-                ),
-                Expanded(
-                  child: Padding(
-                    padding: const EdgeInsets.symmetric(horizontal: 8.0),
-                    child: ElevatedButton(
-                      onPressed: () {
-                        if (printerService.selectedPrinter != null) {
-                          printerService.savePrinter(
-                            printerService.selectedPrinter!,
+                  child: OutlinedButton.icon(
+                    onPressed: () async {
+                      try {
+                        await printerService.testPrint();
+                        if (mounted) {
+                          ScaffoldMessenger.of(context).showSnackBar(
+                            const SnackBar(content: Text("Test Print Terkirim!")),
                           );
                         }
-                      },
-                      style: ElevatedButton.styleFrom(
-                        backgroundColor: Colors.blue,
-                        padding: const EdgeInsets.symmetric(vertical: 16),
-                        shape: RoundedRectangleBorder(
-                          borderRadius: BorderRadius.circular(12),
-                        ),
-                        textStyle: const TextStyle(
-                          fontSize: 16,
-                          fontWeight: FontWeight.bold,
-                        ),
-                      ),
-                      child: const Text(
-                        "Simpan",
-                        style: TextStyle(color: Colors.white),
-                      ),
-                    ),
+                      } catch (e) {
+                        ScaffoldMessenger.of(context).showSnackBar(
+                          SnackBar(content: Text(e.toString())),
+                        );
+                      }
+                    },
+                    icon: const Icon(Icons.receipt),
+                    label: const Text("Test Print"),
+                    style: OutlinedButton.styleFrom(padding: const EdgeInsets.symmetric(vertical: 14)),
                   ),
                 ),
+                const SizedBox(width: 12),
                 Expanded(
-                  child: Padding(
-                    padding: const EdgeInsets.symmetric(horizontal: 8.0),
-                    child: ElevatedButton(
-                      onPressed: () {
-                        printerService.disconnect();
-                      },
-                      style: ElevatedButton.styleFrom(
-                        backgroundColor: Colors.red,
-                        padding: const EdgeInsets.symmetric(vertical: 16),
-                        shape: RoundedRectangleBorder(
-                          borderRadius: BorderRadius.circular(12),
-                        ),
-                        textStyle: const TextStyle(
-                          fontSize: 16,
-                          fontWeight: FontWeight.bold,
-                        ),
-                      ),
-                      child: const Text(
-                        "Putuskan",
-                        style: TextStyle(color: Colors.white),
-                      ),
+                  child: ElevatedButton.icon(
+                    onPressed: printerService.isConnected
+                        ? () => printerService.disconnect()
+                        : null,
+                    icon: const Icon(Icons.bluetooth_disabled),
+                    label: const Text("Putuskan"),
+                    style: ElevatedButton.styleFrom(
+                      backgroundColor: Colors.red,
+                      foregroundColor: Colors.white,
+                      padding: const EdgeInsets.symmetric(vertical: 14),
                     ),
                   ),
                 ),
               ],
             ),
-          ],
-        ),
+          )
+        ],
       ),
     );
   }

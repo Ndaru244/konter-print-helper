@@ -1,10 +1,11 @@
 import 'dart:async';
 import 'dart:io';
-import 'package:cetak_struk/services/printer_service.dart';
 import 'package:flutter/material.dart';
 import 'package:google_mlkit_text_recognition/google_mlkit_text_recognition.dart';
 import 'package:provider/provider.dart';
 import 'package:shared_preferences/shared_preferences.dart';
+import 'package:cetak_struk/services/printer_service.dart';
+import 'package:cetak_struk/services/receipt_scanner.dart';
 
 class CetakStrukPage extends StatefulWidget {
   final String imagePath;
@@ -18,42 +19,22 @@ class _CetakStrukPageState extends State<CetakStrukPage> {
   final TextRecognizer _textRecognizer = TextRecognizer();
   final TextEditingController _namaTokoController = TextEditingController();
   final TextEditingController _catatanController = TextEditingController(
-    text: "Struk Ini Merupakan Bukti Transaksi Yang Sah Harap Di Simpan!",
+    text: "Simpan struk ini sebagai bukti transaksi yang sah.",
   );
-  // Tambahkan TextEditingController baru untuk data hasil scan
   final TextEditingController _scanDataController = TextEditingController();
-  String _appSource = "Tidak Dikenali";
+
+  String _appSource = "UMUM";
   bool _isProcessing = false;
-  bool _canPrint = false;
 
   @override
   void initState() {
     super.initState();
-
-    final printerService = context.read<PrinterService>();
-    printerService.init();
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      context.read<PrinterService>().init();
+    });
 
     _loadNamaToko();
     _processImage();
-
-    Timer.periodic(const Duration(seconds: 3), (_) {
-      printerService.checkConnection();
-    });
-  }
-
-  Future<void> _loadNamaToko() async {
-    final prefs = await SharedPreferences.getInstance();
-    final savedNama = prefs.getString("namaToko");
-    if (savedNama != null && savedNama.isNotEmpty) {
-      _namaTokoController.text = savedNama;
-    } else {
-      _namaTokoController.text = "Nama Toko";
-    }
-  }
-
-  Future<void> _saveNamaToko() async {
-    final prefs = await SharedPreferences.getInstance();
-    await prefs.setString("namaToko", _namaTokoController.text);
   }
 
   @override
@@ -65,357 +46,253 @@ class _CetakStrukPageState extends State<CetakStrukPage> {
     super.dispose();
   }
 
-  Future<void> _processImage() async {
+  Future<void> _loadNamaToko() async {
+    final prefs = await SharedPreferences.getInstance();
     setState(() {
-      _isProcessing = true;
-      _canPrint = false;
-      _appSource = "Tidak Dikenali";
-    });
-
-    final inputImage = InputImage.fromFile(File(widget.imagePath));
-    final recognizedText = await _textRecognizer.processImage(inputImage);
-    debugPrint("=== HASIL OCR MENTAH ===");
-    debugPrint(recognizedText.text);
-
-    final lowerText = recognizedText.text.toLowerCase();
-    if (lowerText.contains("dana")) {
-      _appSource = "Dari DANA";
-    } else if (lowerText.contains("gopay")) {
-      _appSource = "Dari GoPay";
-    } else if (lowerText.contains("seabank")) {
-      _appSource = "Dari SeaBank";
-    }
-
-    final lines = recognizedText.text.split('\n');
-    final processedLines = <String>{};
-
-    final regexNamaPenerimaDana = RegExp(r'ke\s(.+?)\s-');
-    final matchNamaDana = regexNamaPenerimaDana.firstMatch(recognizedText.text);
-    if (matchNamaDana != null && matchNamaDana.group(1) != null) {
-      processedLines.add("Penerima: ${matchNamaDana.group(1)!.trim()}");
-    }
-
-    final regexNamaPenerimaGopay = RegExp(r'Ditransfer ke\s(.+)');
-    final matchNamaGopay = regexNamaPenerimaGopay.firstMatch(
-      recognizedText.text,
-    );
-    if (matchNamaGopay != null && matchNamaGopay.group(1) != null) {
-      processedLines.add("Penerima: ${matchNamaGopay.group(1)!.trim()}");
-    }
-
-    final regexNominal = RegExp(r'Rp(\d{1,3}(?:\.\d{3})*)');
-    final matchNominal = regexNominal.firstMatch(recognizedText.text);
-    if (matchNominal != null && matchNominal.group(0) != null) {
-      processedLines.add("Nominal: ${matchNominal.group(0)!.trim()}");
-    }
-
-    for (var line in lines) {
-      final trimmedLine = line.trim();
-      if (trimmedLine.isEmpty || _isNoise(trimmedLine)) {
-        continue;
-      }
-      processedLines.add(trimmedLine);
-    }
-
-    // Gabungkan semua baris menjadi satu string dengan baris baru
-    final combinedData = processedLines.join('\n');
-    _scanDataController.text = combinedData;
-
-    debugPrint("=== HASIL OCR YANG DIFILTER ===");
-    debugPrint(_scanDataController.text);
-
-    setState(() {
-      _isProcessing = false;
-      _canPrint = true;
+      _namaTokoController.text = prefs.getString("namaToko") ?? "NAMA TOKO ANDA";
     });
   }
 
-  bool _isNoise(String text) {
-    final t = text.toLowerCase();
+  Future<void> _saveNamaToko() async {
+    final prefs = await SharedPreferences.getInstance();
+    await prefs.setString("namaToko", _namaTokoController.text);
+  }
 
-    final blacklist = [
-      "gratis",
-      "transfer",
-      "selesai",
-      "rincian transaksi",
-      "detail transaksi",
-      "no. transaksi",
-      "id transaksi",
-      "metode pembayaran",
-      "waktu",
-      "tanggal",
-      "total",
-      "jumlah",
-      "unduh",
-      "unduh dan bagikan",
-      "chat dengan cs",
-      "download on the",
-      "app store",
-      "get it on",
-      "google play",
-      "aplikasi ringan",
-      "diamankan oleh",
-      "protection",
-      "id dana",
-      "id order merchant",
-      "external serial number",
-      "harga tercantum",
-      "sudah termasuk",
-      "dikirim dari",
-      "dapetin",
-      "saldo",
-      "detail",
-      "akun",
-      "nama",
-      "biaya",
-      "admin",
-      "pembayaran",
-      "kirim",
-      "uang",
-      "dari",
-      "ke",
-      "jumlah transfer",
-      "no. referensi",
-      "bukti transaksi",
-      "metode transaksi",
-      "waktu transaksi",
-      "butuh bantuan?",
-      "resi ini merupakan bukti transaksi yang sah",
-      "realtime online",
-      "odana",
-      "transaksi berhasil!",
-      "metode pembayaran",
-      "detail penerima",
-      "nama",
-      "akun dana",
-      "detail transaksi",
-      "diamankan oleh",
-      "dp",
-      "smartpay",
-      "da",
-      "id order merchar",
-      "status",
-      "rincian transaksi",
-      "gopay saldo",
-      "dikirim dari app gopay. dapetin",
-      "gratis transfer 100x/bulan!",
-      "aplikasi ringan buat kebutuhan",
-      "finansialmu.",
-    ];
+  Future<void> _processImage() async {
+    setState(() => _isProcessing = true);
 
-    if (t.isEmpty || t.length <= 2) {
-      return true;
+    try {
+      final inputImage = InputImage.fromFile(File(widget.imagePath));
+      final recognizedText = await _textRecognizer.processImage(inputImage);
+
+      final result = ReceiptScanner.process(recognizedText);
+
+      setState(() {
+        _appSource = result.source;
+        _scanDataController.text = result.processedText;
+      });
+    } catch (e) {
+      debugPrint("Error OCR: $e");
+    } finally {
+      setState(() => _isProcessing = false);
     }
-    if (t.contains("bank") && RegExp(r'\d').hasMatch(t)) {
-      return false;
-    }
-    if (t.contains("rp") && t.length > 10) {
-      return false;
-    }
-    for (var keyword in blacklist) {
-      if (t.contains(keyword)) {
-        return true;
-      }
-    }
-    return false;
   }
 
   Future<void> _printStruk() async {
     final printerService = Provider.of<PrinterService>(context, listen: false);
-
     await _saveNamaToko();
 
-    if (!_canPrint) {
+    if (_scanDataController.text.isEmpty) {
       ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(content: Text("Struk belum siap untuk dicetak.")),
+        const SnackBar(content: Text("Data kosong, tidak ada yang dicetak.")),
       );
       return;
     }
 
-    if (!printerService.isConnected) {
-      ScaffoldMessenger.of(
-        context,
-      ).showSnackBar(const SnackBar(content: Text("Printer belum terhubung.")));
+    if (!printerService.isConnected && !printerService.isDummyMode) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(content: Text("Printer belum terhubung! Cek koneksi.")),
+      );
       return;
     }
 
-    String formatText(String text, {int width = 32}) {
-      return text.length > width ? text.substring(0, width) : text;
+    if (printerService.isDummyMode) {
+      debugPrint("\n\n");
+      debugPrint("========================================");
+      debugPrint("      SIMULASI CETAK STRUK (DUMMY)      ");
+      debugPrint("========================================");
+
+      debugPrint(_namaTokoController.text.toUpperCase());
+      debugPrint("-" * 32);
+      debugPrint("SUMBER: $_appSource");
+      debugPrint("");
+
+      final lines = _scanDataController.text.split('\n');
+      for (var line in lines) {
+        if (line.contains(":")) {
+          final parts = line.split(":");
+          if (parts.length >= 2) {
+            String key = parts[0].trim();
+            String val = parts.sublist(1).join(":").trim();
+
+            int spaceCount = 32 - key.length - val.length;
+            if (spaceCount < 1) spaceCount = 1;
+            String spaces = " " * spaceCount;
+
+            debugPrint("$key$spaces$val");
+          } else {
+            debugPrint(line);
+          }
+        } else {
+          debugPrint(line);
+        }
+      }
+
+      // Footer
+      debugPrint("-" * 32);
+      if (_catatanController.text.isNotEmpty) {
+        debugPrint("Catatan:");
+        debugPrint(_catatanController.text);
+        debugPrint("-" * 32);
+      }
+      debugPrint("          TERIMA KASIH          ");
+      debugPrint("========================================");
+      debugPrint("\n\n");
+
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(content: Text("[DUMMY] Struk berhasil dicetak ke Console!")),
+      );
+      return;
     }
 
-    final bluetooth = printerService.bluetooth;
+    final bt = printerService.bluetooth;
 
-    bluetooth.printNewLine();
-    bluetooth.printCustom(_namaTokoController.text, 2, 1); // Nama toko
-    bluetooth.printCustom('-' * 32, 1, 1); // Garis pembatas
+    try {
+      bt.printNewLine();
+      bt.printCustom(_namaTokoController.text.toUpperCase(), 2, 1);
+      bt.printCustom("-" * 32, 1, 1);
 
-    if (_appSource != "Tidak Dikenali") {
-      bluetooth.printCustom("Bukti Transfer $_appSource", 1, 1);
-      bluetooth.printCustom('-' * 32, 1, 1);
+      bt.printCustom("SUMBER: $_appSource", 1, 1);
+      bt.printNewLine();
+
+      final lines = _scanDataController.text.split('\n');
+      for (var line in lines) {
+        if (line.contains(":")) {
+          final parts = line.split(":");
+          if (parts.length >= 2) {
+            String key = parts[0].trim();
+            String val = parts.sublist(1).join(":").trim();
+            bool isNominal = key.toLowerCase().contains("nominal");
+
+            int dotsCount = 32 - key.length - val.length;
+            if (dotsCount < 1) dotsCount = 1;
+            String dots = " " * dotsCount;
+
+            int size = isNominal ? 1 : 0;
+            bt.printCustom("$key$dots$val", size, 0);
+
+          } else {
+            bt.printCustom(line, 1, 0);
+          }
+        } else {
+          bt.printCustom(line, 1, 0);
+        }
+      }
+
+      bt.printNewLine();
+      bt.printCustom("-" * 32, 1, 1);
+
+      if (_catatanController.text.isNotEmpty) {
+        bt.printCustom(_catatanController.text, 1, 1);
+        bt.printCustom("-" * 32, 1, 1);
+      }
+
+      bt.printCustom("TERIMA KASIH", 1, 1);
+      bt.printNewLine();
+      bt.printNewLine();
+
+    } catch (e) {
+      debugPrint("Error Print Native: $e");
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(content: Text("Gagal mencetak: $e")),
+      );
     }
-
-    // Isi hasil OCR
-    for (var line in _scanDataController.text.split('\n')) {
-      bluetooth.printCustom(formatText(line), 1, 0);
-    }
-
-    bluetooth.printCustom('-' * 32, 1, 1); // Garis pembatas
-
-    // Catatan
-    if (_catatanController.text.trim().isNotEmpty) {
-      bluetooth.printCustom("Catatan:", 1, 0);
-      bluetooth.printCustom(_catatanController.text, 1, 0);
-      bluetooth.printCustom('-' * 32, 1, 1);
-    }
-
-    // Footer
-    bluetooth.printCustom("- Terima Kasih -", 1, 1);
-
-    bluetooth.printNewLine();
-    bluetooth.printNewLine();
-
-    ScaffoldMessenger.of(
-      context,
-    ).showSnackBar(const SnackBar(content: Text("Struk sedang dicetak...")));
   }
 
   @override
   Widget build(BuildContext context) {
     final printerService = context.watch<PrinterService>();
+
     return Scaffold(
       appBar: AppBar(
-        backgroundColor: Colors.white,
-        surfaceTintColor: Colors.white,
-        elevation: 0,
-        title: const Text("Cetak Struk"),
+        title: const Text("Preview Struk"),
         centerTitle: true,
         bottom: PreferredSize(
-          preferredSize: const Size.fromHeight(40),
+          preferredSize: const Size.fromHeight(30),
           child: Container(
             width: double.infinity,
-            color: printerService.isConnected
-                ? Colors.green.shade100
-                : Colors.red.shade100,
-            padding: const EdgeInsets.all(8),
+            color: printerService.isConnected ? Colors.green : Colors.red,
+            padding: const EdgeInsets.symmetric(vertical: 4),
             child: Text(
-              printerService.isConnected
-                  ? "Printer Terhubung"
-                  : "Printer belum tersambung",
-              style: TextStyle(
-                fontWeight: FontWeight.bold,
-                color: printerService.isConnected ? Colors.green : Colors.red,
-              ),
+              printerService.isConnected ? "SIAP CETAK" : "PRINTER OFF",
               textAlign: TextAlign.center,
+              style: const TextStyle(color: Colors.white, fontWeight: FontWeight.bold, fontSize: 12),
             ),
           ),
         ),
       ),
       body: _isProcessing
-          ? const Center(child: CircularProgressIndicator())
+          ? const Center(child: Column(
+        mainAxisAlignment: MainAxisAlignment.center,
+        children: [
+          CircularProgressIndicator(),
+          SizedBox(height: 16),
+          Text("Sedang membaca struk..."),
+        ],
+      ))
           : SingleChildScrollView(
-              padding: const EdgeInsets.all(16.0),
-              child: Column(
-                crossAxisAlignment: CrossAxisAlignment.stretch,
-                children: [
-                  _buildFormSection(
-                    "Nama Toko",
-                    _namaTokoController,
-                    "Masukkan Nama Toko",
-                  ),
-                  _buildScanDataField(), // Menggunakan field baru di sini
-                  _buildFormSection(
-                    "Catatan / Deskripsi",
-                    _catatanController,
-                    "Masukkan Catatan / Deskripsi",
-                    maxLines: 3,
-                  ),
-                  const SizedBox(height: 24),
-                  ElevatedButton(
-                    onPressed: _printStruk,
-                    style: ElevatedButton.styleFrom(
-                      backgroundColor: Colors.blue,
-                      padding: const EdgeInsets.symmetric(vertical: 16),
-                      shape: RoundedRectangleBorder(
-                        borderRadius: BorderRadius.circular(12),
-                      ),
-                      textStyle: const TextStyle(
-                        fontSize: 16,
-                        fontWeight: FontWeight.bold,
-                      ),
-                    ),
-                    child: const Text(
-                      "Print",
-                      style: TextStyle(color: Colors.white),
-                    ),
-                  ),
-                ],
-              ),
+        padding: const EdgeInsets.all(16),
+        child: Column(
+          children: [
+            _buildInput("Nama Toko", _namaTokoController),
+            const SizedBox(height: 12),
+            _buildInput(
+              "Data Transaksi (Bisa diedit manual)",
+              _scanDataController,
+              minLines: 5,
+              maxLines: null,
             ),
+            const SizedBox(height: 12),
+            _buildInput("Catatan Kaki", _catatanController, maxLines: 2),
+            const SizedBox(height: 24),
+            SizedBox(
+              width: double.infinity,
+              child: ElevatedButton.icon(
+                onPressed: _printStruk,
+                icon: const Icon(Icons.print),
+                label: const Text("CETAK SEKARANG"),
+                style: ElevatedButton.styleFrom(
+                  padding: const EdgeInsets.symmetric(vertical: 16),
+                  backgroundColor: Colors.blue,
+                  foregroundColor: Colors.white,
+                ),
+              ),
+            )
+          ],
+        ),
+      ),
     );
   }
 
-  Widget _buildFormSection(
-    String title,
-    TextEditingController controller,
-    String hint, {
-    int maxLines = 1,
-  }) {
+  Widget _buildInput(
+      String label,
+      TextEditingController controller,
+      {
+        int minLines = 1,
+        int? maxLines = 1,
+      }
+      ) {
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
-        Text(title, style: const TextStyle(fontWeight: FontWeight.bold)),
-        const SizedBox(height: 8),
+        Text(label, style: const TextStyle(fontWeight: FontWeight.bold, color: Colors.grey)),
+        const SizedBox(height: 4),
         TextField(
           controller: controller,
+          minLines: minLines,
           maxLines: maxLines,
-          decoration: InputDecoration(
-            hintText: hint,
-            border: OutlineInputBorder(
-              borderRadius: BorderRadius.circular(8),
-              borderSide: const BorderSide(color: Colors.grey),
-            ),
-            filled: true,
-            fillColor: Colors.grey.shade100,
-            contentPadding: const EdgeInsets.symmetric(
-              horizontal: 16,
-              vertical: 12,
-            ),
-          ),
-        ),
-        const SizedBox(height: 16),
-      ],
-    );
-  }
 
-  // Widget baru untuk menampilkan data hasil scan dalam satu field
-  Widget _buildScanDataField() {
-    return Column(
-      crossAxisAlignment: CrossAxisAlignment.start,
-      children: [
-        const Text(
-          "Data Hasil Scan",
-          style: TextStyle(fontWeight: FontWeight.bold),
-        ),
-        const SizedBox(height: 8),
-        TextField(
-          controller: _scanDataController,
-          maxLines: null, // Ini akan membuat field menjadi textarea
-          keyboardType: TextInputType.multiline,
+          keyboardType: (maxLines == null || maxLines > 1)
+              ? TextInputType.multiline
+              : TextInputType.text,
+
           decoration: InputDecoration(
-            hintText: "Data hasil scan akan muncul di sini.",
-            border: OutlineInputBorder(
-              borderRadius: BorderRadius.circular(8),
-              borderSide: const BorderSide(color: Colors.grey),
-            ),
+            border: OutlineInputBorder(borderRadius: BorderRadius.circular(8)),
             filled: true,
-            fillColor: Colors.grey.shade100,
-            contentPadding: const EdgeInsets.symmetric(
-              horizontal: 16,
-              vertical: 12,
-            ),
+            fillColor: Colors.grey.shade50,
+            contentPadding: const EdgeInsets.all(12),
           ),
         ),
-        const SizedBox(height: 16),
       ],
     );
   }

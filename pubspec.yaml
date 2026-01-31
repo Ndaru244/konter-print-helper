@@ -1,6 +1,6 @@
 name: cetak_struk
 description: "A new Flutter project."
-publish_to: 'none' # Private package
+publish_to: 'none'
 
 version: 1.0.0+1
 
@@ -17,12 +17,11 @@ dependencies:
   shared_preferences: ^2.2.2
   provider: ^6.1.2
 
-# Plugin blue_thermal_printer di-override pakai repo yang sudah patch namespace
 dependency_overrides:
   blue_thermal_printer:
     git:
       url: https://github.com/kakzaki/blue_thermal_printer.git
-      ref: master  # optional, bisa spesifik commit jika mau stabil
+      ref: master
 
 dev_dependencies:
   flutter_test:
@@ -32,10 +31,15 @@ dev_dependencies:
   flutter_lints: ^6.0.0
 
 flutter_native_splash:
-  color: "#ffffff"
+  color: "#511d66"
   image: assets/icon/splash_icon.png
+
+  android_12:
+    image: assets/icon/splash_icon.png
+    color: "#511d66"
+
   android: true
-  ios: true
+  ios: false
   web: false
   fullscreen: true
   android_gravity: center
@@ -43,8 +47,10 @@ flutter_native_splash:
 
 flutter_launcher_icons:
   android: true
-  ios: true
+  ios: false
   image_path: "assets/icon/icon.png"
+  adaptive_icon_background: "#511d66"
+  adaptive_icon_foreground: "assets/icon/icon.png"
 
 flutter:
   uses-material-design: true

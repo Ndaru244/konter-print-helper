@@ -1,11 +1,11 @@
 import 'dart:async';
 import 'dart:io';
-import 'package:cetak_struk/services/printer_service.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:provider/provider.dart';
-import 'settingprinter.dart';
-import 'cetakstruk.dart';
+import 'package:cetak_struk/services/printer_service.dart';
+import 'package:cetak_struk/pages/settingprinter.dart';
+import 'package:cetak_struk/pages/cetakstruk.dart';
 
 class HomePage extends StatefulWidget {
   const HomePage({super.key});
@@ -14,24 +14,43 @@ class HomePage extends StatefulWidget {
   State<HomePage> createState() => _HomePageState();
 }
 
-class _HomePageState extends State<HomePage> {
+class _HomePageState extends State<HomePage> with WidgetsBindingObserver {
   static const platform = MethodChannel("app.share");
+
   bool fileReceived = false;
   String? filePath;
+  Timer? _connectionTimer;
 
   @override
   void initState() {
     super.initState();
+    WidgetsBinding.instance.addObserver(this);
 
     final printerService = context.read<PrinterService>();
-    printerService.init();
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      context.read<PrinterService>().init();
+    });
 
     _checkInitialShared();
     _listenOnShare();
 
-    Timer.periodic(const Duration(seconds: 3), (_) {
+    _connectionTimer = Timer.periodic(const Duration(seconds: 10), (_) {
       printerService.checkConnection();
     });
+  }
+
+  @override
+  void dispose() {
+    WidgetsBinding.instance.removeObserver(this);
+    _connectionTimer?.cancel();
+    super.dispose();
+  }
+
+  @override
+  void didChangeAppLifecycleState(AppLifecycleState state) {
+    if (state == AppLifecycleState.resumed) {
+      context.read<PrinterService>().checkConnection();
+    }
   }
 
   Future<void> _checkInitialShared() async {
@@ -42,10 +61,9 @@ class _HomePageState extends State<HomePage> {
           fileReceived = true;
           filePath = path;
         });
-        debugPrint("Initial shared file: $path");
       }
     } on PlatformException catch (e) {
-      debugPrint("Failed to get initial shared: ${e.message}");
+      debugPrint("Error getInitialShared: ${e.message}");
     }
   }
 
@@ -58,7 +76,6 @@ class _HomePageState extends State<HomePage> {
             fileReceived = true;
             filePath = path;
           });
-          debugPrint("New shared file: $path");
         }
       }
     });
@@ -74,40 +91,14 @@ class _HomePageState extends State<HomePage> {
   @override
   Widget build(BuildContext context) {
     final printerService = context.watch<PrinterService>();
+
     return Scaffold(
       appBar: AppBar(
-        backgroundColor: Colors.white,
-        surfaceTintColor: Colors.white,
-        elevation: 0,
-        title: const Text(
-          "Cetak Struk",
-          style: TextStyle(fontWeight: FontWeight.bold),
-        ),
+        title: const Text("Cetak Struk", style: TextStyle(fontWeight: FontWeight.bold)),
         centerTitle: true,
-        bottom: PreferredSize(
-          preferredSize: const Size.fromHeight(40),
-          child: Container(
-            width: double.infinity,
-            color: printerService.isConnected
-                ? Colors.green.shade100
-                : Colors.red.shade100,
-            padding: const EdgeInsets.all(8),
-            child: Text(
-              printerService.isConnected
-                  ? "Printer Terhubung"
-                  : "Printer belum tersambung",
-              style: TextStyle(
-                fontWeight: FontWeight.bold,
-                color: printerService.isConnected ? Colors.green : Colors.red,
-              ),
-              textAlign: TextAlign.center,
-            ),
-          ),
-        ),
-        automaticallyImplyLeading: false,
         actions: [
           IconButton(
-            icon: const Icon(Icons.settings),
+            icon: Icon(Icons.settings, color: Colors.grey[800]),
             onPressed: () {
               Navigator.push(
                 context,
@@ -119,71 +110,58 @@ class _HomePageState extends State<HomePage> {
       ),
       body: SingleChildScrollView(
         child: Column(
-          crossAxisAlignment: CrossAxisAlignment.stretch,
           children: [
-            const SizedBox(height: 12),
             Container(
-              margin: const EdgeInsets.symmetric(horizontal: 16),
-              padding: const EdgeInsets.all(12),
-              decoration: BoxDecoration(
-                color: fileReceived ? Colors.green.shade50 : Colors.red.shade50,
-                borderRadius: BorderRadius.circular(8),
-                border: Border.all(
-                  color: fileReceived ? Colors.green : Colors.red,
-                ),
-              ),
+              width: double.infinity,
+              padding: const EdgeInsets.symmetric(vertical: 8, horizontal: 16),
+              color: printerService.isConnected ? Colors.green.shade50 : Colors.red.shade50,
               child: Row(
+                mainAxisAlignment: MainAxisAlignment.center,
                 children: [
                   Icon(
-                    fileReceived ? Icons.check_circle : Icons.info,
-                    color: fileReceived ? Colors.green : Colors.red,
+                    printerService.isConnected ? Icons.bluetooth_connected : Icons.bluetooth_disabled,
+                    size: 18,
+                    color: printerService.isConnected ? Colors.green : Colors.red,
                   ),
                   const SizedBox(width: 8),
-                  Expanded(
-                    child: Text(
-                      fileReceived
-                          ? "File transaksi berhasil diterima."
-                          : "Belum ada file transaksi yang diterima.",
-                      style: TextStyle(
-                        color: fileReceived ? Colors.green : Colors.red,
-                      ),
+                  Text(
+                    printerService.isConnected
+                        ? "Printer: ${printerService.selectedPrinter?.name ?? 'Terhubung'}"
+                        : "Printer Tidak Terhubung",
+                    style: TextStyle(
+                      color: printerService.isConnected ? Colors.green[800] : Colors.red[800],
+                      fontWeight: FontWeight.bold,
                     ),
                   ),
                 ],
               ),
             ),
-            if (filePath != null) ...[
-              const SizedBox(height: 20),
-              _buildFilePreview(),
-            ],
+
             const SizedBox(height: 20),
+
+            Padding(
+              padding: const EdgeInsets.symmetric(horizontal: 16),
+              child: fileReceived && filePath != null
+                  ? _buildFilePreviewCard()
+                  : _buildEmptyStateCard(),
+            ),
+
+            const SizedBox(height: 20),
+
             Container(
               margin: const EdgeInsets.symmetric(horizontal: 16),
-              padding: const EdgeInsets.all(16),
+              padding: const EdgeInsets.all(20),
               decoration: BoxDecoration(
                 color: Colors.blue.shade50,
-                borderRadius: BorderRadius.circular(12),
-                border: Border.all(color: Colors.blue.shade200),
+                borderRadius: BorderRadius.circular(16),
               ),
               child: Column(
-                crossAxisAlignment: CrossAxisAlignment.start,
-                children: const [
-                  Center(
-                    child: Text(
-                      "Panduan Pemakaian",
-                      style: TextStyle(
-                        fontSize: 16,
-                        fontWeight: FontWeight.bold,
-                        color: Colors.blue,
-                      ),
-                    ),
-                  ),
-                  SizedBox(height: 12),
-                  Text("1. Buka riwayat transaksi dari Dompet Online."),
-                  SizedBox(height: 6),
-                  Text("2. Tekan tombol bagikan transaksi."),
-                  SizedBox(height: 6),
-                  Text("3. Pilih aplikasi Cetak Struk."),
+                children: [
+                  const Text("Panduan Cepat", style: TextStyle(fontWeight: FontWeight.bold, fontSize: 16, color: Colors.blue)),
+                  const SizedBox(height: 12),
+                  _buildGuideItem("1", "Buka Aplikasi E-Wallet (DANA/GoPay/dll)"),
+                  _buildGuideItem("2", "Buka Riwayat & Klik Bagikan Resi"),
+                  _buildGuideItem("3", "Pilih Aplikasi 'Cetak Struk' ini"),
                 ],
               ),
             ),
@@ -192,17 +170,17 @@ class _HomePageState extends State<HomePage> {
       ),
 
       floatingActionButton: FloatingActionButton.extended(
+        backgroundColor: Colors.blue,
+        icon: const Icon(Icons.print, color: Colors.white),
+        label: const Text("Lanjut Cetak", style: TextStyle(color: Colors.white)),
         onPressed: () async {
-          final printerService = PrinterService();
-          await printerService.checkConnection();
+          final service = Provider.of<PrinterService>(context, listen: false);
 
-          if (!printerService.isConnected) {
+          await service.checkConnection();
+
+          if (!service.isConnected) {
             ScaffoldMessenger.of(context).showSnackBar(
-              const SnackBar(
-                content: Text(
-                  "Printer belum tersambung. Silakan hubungkan terlebih dahulu.",
-                ),
-              ),
+              const SnackBar(content: Text("Sambungkan printer di menu pengaturan dulu!")),
             );
             return;
           }
@@ -216,62 +194,90 @@ class _HomePageState extends State<HomePage> {
             );
           } else {
             ScaffoldMessenger.of(context).showSnackBar(
-              const SnackBar(
-                content: Text("Belum ada file transaksi yang diterima."),
-              ),
+              const SnackBar(content: Text("Belum ada file gambar struk yang diterima.")),
             );
           }
         },
-        label: const Text("Cetak", style: TextStyle(color: Colors.white)),
-        icon: const Icon(Icons.print, color: Colors.white),
-        backgroundColor: Colors.blue,
       ),
     );
   }
 
-  Widget _buildFilePreview() {
-    if (filePath == null) {
-      return const SizedBox.shrink();
-    }
+  Widget _buildEmptyStateCard() {
     return Container(
-      margin: const EdgeInsets.symmetric(horizontal: 16),
+      padding: const EdgeInsets.all(24),
+      decoration: BoxDecoration(
+        color: Colors.white,
+        borderRadius: BorderRadius.circular(12),
+        border: Border.all(color: Colors.grey.shade200),
+      ),
+      child: Column(
+        children: const [
+          Icon(Icons.receipt_long, size: 48, color: Colors.grey),
+          SizedBox(height: 12),
+          Text(
+            "Belum Ada Transaksi",
+            style: TextStyle(fontWeight: FontWeight.bold, fontSize: 16),
+          ),
+          Text(
+            "Bagikan gambar struk dari aplikasi lain ke sini.",
+            textAlign: TextAlign.center,
+            style: TextStyle(color: Colors.grey),
+          ),
+        ],
+      ),
+    );
+  }
+
+  Widget _buildFilePreviewCard() {
+    return Container(
       padding: const EdgeInsets.all(12),
       decoration: BoxDecoration(
         color: Colors.white,
         borderRadius: BorderRadius.circular(12),
         boxShadow: [
-          BoxShadow(
-            color: Colors.grey.withOpacity(0.2),
-            spreadRadius: 2,
-            blurRadius: 5,
-            offset: const Offset(0, 3),
-          ),
+          BoxShadow(color: Colors.black.withOpacity(0.05), blurRadius: 10, offset: const Offset(0, 4)),
         ],
       ),
       child: Column(
-        crossAxisAlignment: CrossAxisAlignment.stretch,
         children: [
           Row(
             mainAxisAlignment: MainAxisAlignment.spaceBetween,
             children: [
-              const Text(
-                "File Diterima",
-                style: TextStyle(fontWeight: FontWeight.bold, fontSize: 16),
-              ),
+              const Text("Struk Diterima!", style: TextStyle(fontWeight: FontWeight.bold, color: Colors.green)),
               IconButton(
-                icon: const Icon(Icons.close, color: Colors.red),
+                icon: const Icon(Icons.delete, color: Colors.red),
                 onPressed: _removeFile,
-              ),
+                tooltip: "Hapus File",
+              )
             ],
           ),
-          const SizedBox(height: 12),
+          const Divider(),
           ClipRRect(
             borderRadius: BorderRadius.circular(8),
-            child: AspectRatio(
-              aspectRatio: 0.5,
+            child: Container(
+              height: 200,
+              width: double.infinity,
+              color: Colors.grey.shade100,
               child: Image.file(File(filePath!), fit: BoxFit.contain),
             ),
           ),
+        ],
+      ),
+    );
+  }
+
+  Widget _buildGuideItem(String number, String text) {
+    return Padding(
+      padding: const EdgeInsets.symmetric(vertical: 4),
+      child: Row(
+        children: [
+          CircleAvatar(
+            radius: 10,
+            backgroundColor: Colors.blue.shade100,
+            child: Text(number, style: const TextStyle(fontSize: 12, fontWeight: FontWeight.bold, color: Colors.blue)),
+          ),
+          const SizedBox(width: 8),
+          Expanded(child: Text(text, style: const TextStyle(fontSize: 14))),
         ],
       ),
     );
