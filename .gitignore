@@ -75,3 +75,24 @@ app.*.map.json
 /macos/
 /web/
 /windows/
+
+# ==============================================
+# Graphify (generated — do not commit)
+# ==============================================
+graphify-out/
+.graphify/
+
+# ==============================================
+# Secrets / signing (public repo)
+# ==============================================
+.env
+.env.*
+!.env.example
+*.jks
+*.keystore
+**/key.properties
+**/google-services.json
+**/GoogleService-Info.plist
+*.pem
+*.p12
+secrets/

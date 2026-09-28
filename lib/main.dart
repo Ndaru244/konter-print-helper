@@ -1,7 +1,8 @@
-import 'package:flutter/material.dart';
-import 'package:provider/provider.dart';
-import 'services/printer_service.dart';
-import 'pages/homepage.dart'; // buat halaman ini nanti
+import "package:flutter/material.dart";
+import "package:provider/provider.dart";
+import "package:cetak_struk/services/printer_service.dart";
+import "package:cetak_struk/pages/homepage.dart";
+import "package:cetak_struk/theme/app_theme.dart";
 
 void main() async {
   WidgetsFlutterBinding.ensureInitialized();
@@ -23,8 +24,8 @@ class MyApp extends StatelessWidget {
   Widget build(BuildContext context) {
     return MaterialApp(
       debugShowCheckedModeBanner: false,
-      title: 'Cetak Struk',
-      theme: ThemeData(primarySwatch: Colors.blue),
+      title: "Daru Cell",
+      theme: AppTheme.light(),
       home: const HomePage(),
     );
   }

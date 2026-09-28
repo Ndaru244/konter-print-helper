@@ -1,17 +1,4 @@
-// android/build.gradle.kts
-
-import org.jetbrains.kotlin.gradle.tasks.KotlinCompile
-
-buildscript {
-    repositories {
-        google()
-        mavenCentral()
-    }
-    dependencies {
-        classpath("com.android.tools.build:gradle:7.3.0")
-        classpath("org.jetbrains.kotlin:kotlin-gradle-plugin:1.7.10")
-    }
-}
+import com.android.build.gradle.BaseExtension
 
 allprojects {
     repositories {
@@ -20,12 +7,30 @@ allprojects {
     }
 }
 
-// Konfigurasi standar untuk direktori build
-rootProject.buildDir = file("../build")
+val newBuildDir: Directory =
+    rootProject.layout.buildDirectory
+        .dir("../../build")
+        .get()
+rootProject.layout.buildDirectory.value(newBuildDir)
+
 subprojects {
-    project.buildDir = file("${rootProject.buildDir}/${project.name}")
+    val newSubprojectBuildDir: Directory = newBuildDir.dir(project.name)
+    project.layout.buildDirectory.value(newSubprojectBuildDir)
+}
+
+// blue_thermal_printer pins compileSdk 31 and may omit namespace.
+// Its AndroidX dependencies require compileSdk 34+.
+subprojects {
+    afterEvaluate {
+        if (name != "blue_thermal_printer") return@afterEvaluate
+        val android = extensions.findByName("android") as? BaseExtension ?: return@afterEvaluate
+        if (android.namespace == null) {
+            android.namespace = "id.kakzaki.blue_thermal_printer"
+        }
+        android.setCompileSdkVersion(36)
+    }
 }
 
 tasks.register<Delete>("clean") {
-    delete(rootProject.buildDir)
+    delete(rootProject.layout.buildDirectory)
 }

@@ -12,11 +12,12 @@ dependencies:
     sdk: flutter
   google_mlkit_text_recognition: ^0.15.0
   path_provider: ^2.1.5
-  share_plus: ^11.1.0
+  share_plus: ^13.3.0
   cupertino_icons: ^1.0.8
-  shared_preferences: ^2.2.2
+  shared_preferences: ^2.5.5
   provider: ^6.1.2
 
+  blue_thermal_printer: any
 dependency_overrides:
   blue_thermal_printer:
     git:

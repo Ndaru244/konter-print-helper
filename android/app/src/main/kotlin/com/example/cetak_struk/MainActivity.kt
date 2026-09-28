@@ -3,6 +3,8 @@ package com.example.cetak_struk
 import android.content.Intent
 import android.net.Uri
 import android.os.Bundle
+import android.os.Handler
+import android.os.Looper
 import io.flutter.embedding.android.FlutterActivity
 import io.flutter.embedding.engine.FlutterEngine
 import io.flutter.plugin.common.MethodChannel
@@ -18,61 +20,58 @@ class MainActivity : FlutterActivity() {
 
         MethodChannel(flutterEngine.dartExecutor.binaryMessenger, CHANNEL)
             .setMethodCallHandler { call, result ->
-                when (call.method) {
-                    "getInitialShared" -> result.success(pendingShareUri)
-                    else -> result.notImplemented()
+                if (call.method == "getInitialShared") {
+                    result.success(pendingShareUri)
+                    pendingShareUri = null
+                } else {
+                    result.notImplemented()
                 }
             }
     }
 
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
-        handleShareIntent(intent)
+        handleIntent(intent)
     }
 
     override fun onNewIntent(intent: Intent) {
         super.onNewIntent(intent)
         setIntent(intent)
-        handleShareIntent(intent)
+        handleIntent(intent)
     }
 
-    override fun onResume() {
-        super.onResume()
-        intent?.let {
-            if (it.action == Intent.ACTION_SEND && it.type?.startsWith("image/") == true) {
-                handleShareIntent(it)
-            }
-        }
-    }
-
-    private fun handleShareIntent(intent: Intent?) {
+    private fun handleIntent(intent: Intent?) {
         if (intent == null) return
-        val action = intent.action
-        val type = intent.type
-
-        // Hanya terima 1 gambar (ACTION_SEND)
-        if (Intent.ACTION_SEND == action && type?.startsWith("image/") == true) {
+        if (intent.action == Intent.ACTION_SEND && intent.type?.startsWith("image/") == true) {
             val uri = intent.getParcelableExtra<Uri>(Intent.EXTRA_STREAM)
             uri?.let {
-                pendingShareUri = cacheFromUri(it)
-
-                // Kirim ke Flutter kalau app sudah jalan
-                flutterEngine?.dartExecutor?.binaryMessenger?.let { messenger ->
-                    MethodChannel(messenger, CHANNEL).invokeMethod("onShare", pendingShareUri)
+                val path = cacheFromUri(it)
+                if (path.isNotEmpty()) {
+                    pendingShareUri = path
+                    
+                    Handler(Looper.getMainLooper()).postDelayed({
+                        flutterEngine?.dartExecutor?.binaryMessenger?.let { messenger ->
+                            MethodChannel(messenger, CHANNEL).invokeMethod("onShare", path)
+                        }
+                    }, 800)
                 }
             }
         }
     }
 
     private fun cacheFromUri(uri: Uri): String {
-        val fileName = uri.lastPathSegment?.substringAfterLast('/')
-            ?: "shared_${System.currentTimeMillis()}"
-        val dest = File(cacheDir, fileName)
-        contentResolver.openInputStream(uri)?.use { input ->
-            FileOutputStream(dest).use { output ->
-                input.copyTo(output)
+        return try {
+            cacheDir.listFiles()?.forEach { if (it.name.startsWith("shared_")) it.delete() }
+            val fileName = "shared_${System.currentTimeMillis()}.jpg"
+            val dest = File(cacheDir, fileName)
+            contentResolver.openInputStream(uri)?.use { input ->
+                FileOutputStream(dest).use { output ->
+                    input.copyTo(output)
+                }
             }
+            dest.absolutePath
+        } catch (e: Exception) {
+            ""
         }
-        return dest.absolutePath
     }
 }

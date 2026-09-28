@@ -1,0 +1,37 @@
+---
+description: Design system Flutter — Konter Print Helper (Daru Cell). Wajib diikuti untuk UI, ThemeData, warna, tipografi, spacing.
+globs:
+  - "lib/**/*.dart"
+  - "Docs/design-system.md"
+alwaysApply: true
+---
+
+# Design System (Flutter)
+
+SSOT: `Docs/design-system.md`.
+Diadaptasi dari sistem-sekolah; **primary brand project ini = `#8F00BF`** (`Color(0xFF8F00BF)`), bukan indigo web.
+
+## Wajib
+
+1. Baca `Docs/design-system.md` sebelum menambah/ubah UI, theme, warna, radius, atau tipografi.
+2. Seed theme:
+   ```dart
+   ColorScheme.fromSeed(seedColor: const Color(0xFF8F00BF), brightness: …)
+   ```
+3. Status (ikon/garis): success `#22C55E`, warning `#F59E0B`, danger `#EF4444`, info `#3B82F6`. Banner pakai background solid di `Docs/design-system.md`, bukan opacity. Tombol destruktif isi `#B91C1C` + teks putih.
+4. Netral: slate scale di dokumen (`scaffold` slate-50). `fromSeed` tidak menghasilkan slate — override.
+5. Spacing kelipatan 4. Radius sm/md/lg/xl = 8/12/16/24. Kartu 16, tombol & input 12. Jangan 4, 6, 10, 14, 20.
+6. Sentuh ≥ 48. Tombol primer alur kasir tinggi 56, lebar penuh. Body baca 16 (`bodyLarge`). Judul AppBar 22 w600.
+
+## Anti-pola
+
+- Jangan `Colors.indigo` / seed selain `#8F00BF`.
+- Jangan hardcode hex di widget tanpa konstanta token (prefer `lib/theme/` atau `Theme.of(context)`).
+- Jangan Tailwind/CSS class — ini Flutter; pakai `ThemeData`, `ColorScheme`, `TextTheme`.
+- Jangan ubah token warna tanpa update `Docs/design-system.md` dulu.
+
+## Saat menambah token/komponen
+
+1. Update `Docs/design-system.md`.
+2. Implement lewat theme/token terpusat.
+3. Pakai komponen Material 3 (`FilledButton`, `OutlinedButton`, `Card`, `InputDecoration`) sesuai konvensi di dokumen.
