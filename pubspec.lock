@@ -36,11 +36,9 @@ packages:
   blue_thermal_printer:
     dependency: "direct main"
     description:
-      path: "."
-      ref: master
-      resolved-ref: d183d1d74111b1925f330daf378d3ed72ce039c6
-      url: "https://github.com/kakzaki/blue_thermal_printer.git"
-    source: git
+      path: "packages/blue_thermal_printer"
+      relative: true
+    source: path
     version: "1.2.3"
   boolean_selector:
     dependency: transitive

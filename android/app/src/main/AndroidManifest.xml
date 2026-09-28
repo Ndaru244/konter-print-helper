@@ -1,4 +1,14 @@
-<manifest xmlns:android="http://schemas.android.com/apk/res/android">
+<manifest xmlns:android="http://schemas.android.com/apk/res/android"
+    xmlns:tools="http://schemas.android.com/tools">
+    <!-- Printer yang sudah di-pairing hanya butuh Bluetooth, bukan lokasi. -->
+    <uses-permission android:name="android.permission.ACCESS_FINE_LOCATION" tools:node="remove" />
+    <uses-permission android:name="android.permission.ACCESS_COARSE_LOCATION" tools:node="remove" />
+    <uses-permission android:name="android.permission.BLUETOOTH_ADVERTISE" tools:node="remove" />
+    <uses-permission
+        android:name="android.permission.BLUETOOTH_SCAN"
+        android:usesPermissionFlags="neverForLocation"
+        tools:targetApi="s" />
+    <uses-permission android:name="android.permission.BLUETOOTH_CONNECT" />
     <application
         android:label="Daru Cell"
         android:name="${applicationName}"
@@ -33,6 +43,10 @@
         <meta-data
             android:name="flutterEmbedding"
             android:value="2" />
+        <!-- Samsung A26 (Android 16) menolak format Vulkan Impeller 0x3b. -->
+        <meta-data
+            android:name="io.flutter.embedding.android.EnableImpeller"
+            android:value="false" />
     </application>
 
     <queries>

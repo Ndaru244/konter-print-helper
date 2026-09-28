@@ -20,9 +20,7 @@ dependencies:
   blue_thermal_printer: any
 dependency_overrides:
   blue_thermal_printer:
-    git:
-      url: https://github.com/kakzaki/blue_thermal_printer.git
-      ref: master
+    path: packages/blue_thermal_printer
 
 dev_dependencies:
   flutter_test:
