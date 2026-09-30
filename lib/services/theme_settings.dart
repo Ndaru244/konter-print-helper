@@ -111,7 +111,10 @@ class ThemeSettings extends ChangeNotifier with WidgetsBindingObserver {
       SystemUiOverlayStyle(
         statusBarColor: Colors.transparent,
         systemNavigationBarColor: Colors.transparent,
+        // Android: dark icons on light bg; light icons on dark bg.
         statusBarIconBrightness: onDark ? Brightness.light : Brightness.dark,
+        // iOS: statusBarBrightness is the *background* brightness.
+        statusBarBrightness: onDark ? Brightness.dark : Brightness.light,
         systemNavigationBarIconBrightness: onDark
             ? Brightness.light
             : Brightness.dark,

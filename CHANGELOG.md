@@ -2,7 +2,7 @@
 
 ## 0.2.0
 
-Beta. Nomor versi hanya di `pubspec.yaml` (`0.2.0+4`).
+Beta. Nomor versi hanya di `pubspec.yaml` (`0.2.0+5`).
 
 ### Navigasi dan pengaturan
 
@@ -19,6 +19,12 @@ Beta. Nomor versi hanya di `pubspec.yaml` (`0.2.0+4`).
 
 - Perbaikan pembacaan rekening GoPay dan SeaBank.
 - Edit Struk: form Transfer / PLN Token / Lain, koreksi manual, termasuk total bayar (nominal + admin konter).
+
+### Ikon, splash, dan status bar (build 5)
+
+- Ikon launcher adaptif baru (foreground putih + background PNG) dan aset terkait di `assets/icon/`.
+- Splash native diperbarui: latar terang/gelap, aset Android 12+, dan resource Android yang digenerate ulang.
+- Perbaikan ikon status bar di mode terang (`SystemUiOverlayStyle` di tema AppBar dan overlay tema).
 
 ### Teknis
 

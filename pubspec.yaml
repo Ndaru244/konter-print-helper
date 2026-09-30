@@ -2,7 +2,7 @@ name: cetak_struk
 description: "A new Flutter project."
 publish_to: 'none'
 
-version: 0.2.0+4
+version: 0.2.0+5
 
 environment:
   sdk: ">=3.9.0 <4.0.0"
@@ -34,26 +34,38 @@ dev_dependencies:
   flutter_lints: ^6.0.0
 
 flutter_native_splash:
-  color: "#511d66"
+  # Pre-Android 12 (color + centered image). See https://pub.dev/packages/flutter_native_splash
+  color: "#FFFFFF"
+  color_dark: "#000000"
   image: assets/icon/splash_icon.png
-
-  android_12:
-    image: assets/icon/splash_icon.png
-    color: "#511d66"
-
+  image_dark: assets/icon/splash_icon.png
   android: true
   ios: false
   web: false
-  fullscreen: true
+  fullscreen: false
   android_gravity: center
-  ios_content_mode: center
+
+  # Android 12+ is separate: window color + center icon (+ optional icon plate).
+  # With icon_background_color, prefer ~960x960 logo; package will scale assets.
+  android_12:
+    color: "#FFFFFF"
+    color_dark: "#000000"
+    image: assets/icon/splash_icon_android12.png
+    image_dark: assets/icon/splash_icon_android12.png
+    icon_background_color: "#FFFFFF"
+    icon_background_color_dark: "#FFFFFF"
 
 flutter_launcher_icons:
   android: true
   ios: false
   image_path: "assets/icon/icon.png"
-  adaptive_icon_background: "#511d66"
-  adaptive_icon_foreground: "assets/icon/icon.png"
+  # Solid white PNG background (not a color resource) so OEMs keep the plate.
+  adaptive_icon_background: "assets/icon/ic_launcher_background.png"
+  # White full-bleed + padded logo baked into foreground so plate shows even if
+  # a launcher ignores/replaces the adaptive background layer (themed icons).
+  adaptive_icon_foreground: "assets/icon/icon-adaptive-foreground-white.png"
+  # Logo already padded ~18%+ for adaptive safe zone; do not inset further.
+  adaptive_icon_foreground_inset: 0
 
 flutter:
   uses-material-design: true

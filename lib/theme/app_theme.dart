@@ -1,4 +1,5 @@
 import "package:flutter/material.dart";
+import "package:flutter/services.dart";
 import "package:cetak_struk/theme/app_colors.dart";
 
 abstract final class AppTheme {
@@ -123,6 +124,17 @@ abstract final class AppTheme {
         titleTextStyle: titleLarge,
         iconTheme: IconThemeData(color: title, size: 24),
         actionsIconTheme: IconThemeData(color: title, size: 24),
+        // Transparent AppBar estimates as dark (ARGB 0) and would force light
+        // icons; set overlay explicitly so light mode keeps dark icons.
+        systemOverlayStyle: SystemUiOverlayStyle(
+          statusBarColor: Colors.transparent,
+          systemNavigationBarColor: Colors.transparent,
+          statusBarIconBrightness:
+              dark ? Brightness.light : Brightness.dark,
+          statusBarBrightness: dark ? Brightness.dark : Brightness.light,
+          systemNavigationBarIconBrightness:
+              dark ? Brightness.light : Brightness.dark,
+        ),
       ),
       iconButtonTheme: IconButtonThemeData(
         style: IconButton.styleFrom(
