@@ -1,15 +1,15 @@
 # Konter Print Helper
 
-Aplikasi Android (Flutter) untuk konter: baca bukti transaksi e-wallet lewat **share/OCR**, isi form struk, lalu cetak ke **printer thermal Bluetooth**.
+Aplikasi Android (Flutter) untuk **konter pulsa / PPOB**: ubah bukti transfer atau token PLN dari e-wallet (DANA, GoPay, SeaBank, dll.) menjadi struk fisik di **printer thermal Bluetooth**, lewat share intent + OCR.
 
 ## Isi aplikasi
 
-- **Home** — menunggu resi yang dibagikan dari e-wallet (DANA, GoPay, SeaBank, dll.)
-- **Edit Struk** — OCR → form Transfer / PLN Token / Lain (bisa dikoreksi), termasuk **total bayar** (nominal + admin)
+- **Home** — menunggu resi yang dibagikan dari e-wallet
+- **Edit Struk** — OCR → form Transfer / PLN Token / Lain (bisa dikoreksi), termasuk **total bayar** (nominal + admin konter)
 - **Pengaturan Printer** — sambung Bluetooth, test print
 - **Cetak** — template padat untuk kertas thermal; token PLN satu baris ukuran besar
 
-**Stack:** Flutter, Google ML Kit Text Recognition, `blue_thermal_printer`, Provider.
+**Stack:** Flutter · Google ML Kit Text Recognition · `blue_thermal_printer` · Provider
 
 ## Tampilan
 
@@ -19,7 +19,7 @@ Aplikasi Android (Flutter) untuk konter: baca bukti transaksi e-wallet lewat **s
 
 ## Cara menjalankan
 
-Butuh Flutter SDK dan device/emulator Android (Bluetooth nyata lebih baik di device fisik).
+Butuh Flutter SDK dan device Android (Bluetooth lebih baik di device fisik).
 
 ```bash
 git clone https://github.com/Ndaru244/konter-print-helper.git
@@ -28,16 +28,14 @@ flutter pub get
 flutter run
 ```
 
-Build APK release:
+Build APK:
 
 ```bash
 flutter build apk --release
 ```
 
-Output: `build/app/outputs/flutter-apk/app-release.apk`
-
-Atau unduh APK dari [Releases](https://github.com/Ndaru244/konter-print-helper/releases).
+APK: `build/app/outputs/flutter-apk/app-release.apk` — atau unduh di [Releases](https://github.com/Ndaru244/konter-print-helper/releases).
 
 ## Lisensi
 
-MIT
+MIT — lihat [LICENSE](LICENSE).
