@@ -15,9 +15,9 @@ Aplikasi utilitas untuk pemilik **Konter Pulsa & PPOB**. Mengubah bukti transaks
 
 | Homepage | Edit Struk (OCR) | Setting Printer | Hasil Cetak |
 |:---:|:---:|:---:|:---:|
-| <img src="screenshots/home.jpg" width="200" alt="Homepage" /> | <img src="screenshots/edit-struk.jpg" width="200" alt="Edit Struk" /> | <img src="screenshots/setting.jpg" width="200" alt="Setting Printer" /> | <img src="screenshots/hasil.jpg" width="200" alt="Hasil Cetak" /> |
+| ![Homepage](screenshots/home-v110.jpg) | ![Edit Struk](screenshots/edit-struk-v110.jpg) | ![Setting Printer](screenshots/setting-v110.jpg) | ![Hasil Cetak](screenshots/hasil-v110.jpg) |
 
-Screenshot diperbarui **2026-09-30** (form Transfer/PLN/Lain + cetak SeaBank).
+Screenshot **v1.1.0** (2026-09-30): form Transfer/PLN/Lain + cetak SeaBank.
 
 ---
 
