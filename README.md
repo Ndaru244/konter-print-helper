@@ -7,70 +7,77 @@
 
 > **Solusi Cetak Struk Digital ke Thermal Printer dalam Sekali Klik.**
 
-Aplikasi utilitas cerdas untuk pemilik **Konter Pulsa & PPOB**. Mengubah bukti transaksi digital (screenshot) menjadi struk fisik yang rapi, tajam, dan hemat kertas menggunakan teknologi OCR dan Integrasi Android Share Intent.
+Aplikasi utilitas untuk pemilik **Konter Pulsa & PPOB**. Mengubah bukti transaksi digital (share/screenshot dari e-wallet) menjadi struk fisik yang rapi lewat OCR, form terstruktur, dan printer Bluetooth thermal.
 
 ---
 
 ## Tampilan Aplikasi
-| Homepage | Hasil Scan (OCR) | Setting Printer | Preview Cetak | Hasil Cetak |
-|:---:|:---:|:---:|:---:|:---:|
-| <img src="screenshots/home.jpg" width="200" /> | <img src="screenshots/scan.jpg" width="200" /> | <img src="screenshots/setting.jpg" width="200" /> | <img src="screenshots/preview.jpg" width="200" /> | <img src="screenshots/hasil.jpg" width="200" /> |
+
+| Homepage | Edit Struk (OCR) | Setting Printer | Hasil Cetak |
+|:---:|:---:|:---:|:---:|
+| <img src="screenshots/home.jpg" width="200" alt="Homepage" /> | <img src="screenshots/edit-struk.jpg" width="200" alt="Edit Struk" /> | <img src="screenshots/setting.jpg" width="200" alt="Setting Printer" /> | <img src="screenshots/hasil.jpg" width="200" alt="Hasil Cetak" /> |
+
+Screenshot diperbarui **2026-09-30** (form Transfer/PLN/Lain + cetak SeaBank).
 
 ---
 
 ## Masalah & Solusi
-| Masalah X | Solusi Kami ✓ |
+
+| Masalah | Solusi |
 | :--- | :--- |
-| **Gambar Buram:** Cetak langsung membuat teks pecah/blur. | **Teks Tajam:** Menggunakan OCR untuk mengambil teks asli, bukan gambar. |
-| **Boros Kertas:** Banyak whitespace/ruang kosong pada sistem bawaan (gopay/dana/seabank). | **Hemat Kertas:** Layout struk dipadatkan khusus untuk kertas 58mm. |
-| **Ribet:** Harus save gambar -> buka galeri -> cari app printer. | **Cepat:** Cukup tekan tombol **"Share"** langsung dari E-Wallet. |
+| Cetak screenshot langsung → teks pecah/blur | OCR (Google ML Kit) → teks tajam di thermal |
+| Layout e-wallet boros kertas | Template padat 58mm, hanya field penting |
+| Alur save → galeri → app printer | Share Intent langsung ke Konter Print |
+| Struk transfer vs PLN beda struktur | Deteksi jenis + form terstruktur (bisa dikoreksi) |
+| Admin konter tidak ada di resi app | Field **Total bayar** editable (nominal + admin) |
 
 ## Fitur Unggulan
-* **Direct Share Integration**
-    Tidak perlu buka tutup aplikasi. Aplikasi ini otomatis muncul di menu "Share/Bagikan" Android.
-* **Smart OCR Engine**
-    Didukung oleh **Google ML Kit** untuk akurasi pembacaan teks yang tinggi.
-* **Auto-Parser (Smart Detection)**
-    Otomatis memisahkan data penting (Nominal, Penerima, Pengirim) dari teks sampah.
-* **Editable Struk**
-    Typo pada OCR? Anda bisa mengedit teks sebelum dicetak.
-* **Universal Bluetooth Printer**
-    Mendukung hampir semua merek printer thermal Bluetooth (ESC/POS) ukuran 58mm & 80mm.
+
+* **Direct Share Integration** — muncul di menu Bagikan Android dari e-wallet.
+* **Smart OCR** — Google ML Kit Text Recognition.
+* **Deteksi jenis transaksi** — Transfer / PLN Token / Lain (override manual jika salah).
+* **Form terstruktur** — prefill nominal, penerima, tanggal, IDPEL, token; bukan dump teks mentah.
+* **Total bayar custom** — konter isi biaya admin agar total sesuai pelanggan.
+* **Token PLN** — dicetak **satu baris, ukuran besar** (20 digit).
+* **Editable sebelum cetak** — koreksi OCR lewat field form.
+* **Bluetooth thermal** — ESC/POS 58mm / 80mm (uji dengan RPP02N dan sejenisnya).
 
 ## Aplikasi Teruji (Supported Apps)
-Sistem parser kami telah dioptimalkan untuk membaca struk dari:
-- [x] **DANA** (Kirim Uang & Pembayaran)
-- [x] **GoPay** (Transfer & Top Up)
-- [x] **SeaBank** (Transfer Antar Bank)
-- [ ] *OVO (Coming Soon)*
-- [ ] *BRImo (Coming Soon)*
+
+Parser diuji dengan sampel struk:
+
+- [x] **DANA** — Kirim Uang (transfer)
+- [x] **GoPay** — Transfer & **PLN Token**
+- [x] **SeaBank** — Transfer antar bank / e-wallet
+- [ ] OVO *(coming soon)*
+- [ ] BRImo *(coming soon)*
 
 ## Tech Stack
-* **Core:** [Flutter](https://flutter.dev) (Dart)
-* **Native Integration:** Android Method Channel (Share Intent)
-* **AI/ML:** [google_mlkit_text_recognition](https://pub.dev/packages/google_mlkit_text_recognition)
-* **Hardware:** [blue_thermal_printer](https://pub.dev/packages/blue_thermal_printer)
-* **State Management:** Provider
 
-## Cara Penggunaan (Workflow)
-1.  **Transaksi:** Selesaikan transaksi di E-Wallet (misal: DANA).
-2.  **Bagikan:** Tekan tombol **Share / Bagikan Resi**.
-3.  **Pilih App:** Pilih icon **"Konter Print"**.
-4.  **Proses:** Aplikasi terbuka -> Gambar di-scan -> Data muncul.
-5.  **Cetak:** Edit jika perlu, lalu tekan **Print**.
+* **Core:** [Flutter](https://flutter.dev) (Dart)
+* **Native:** Android Share Intent
+* **OCR:** [google_mlkit_text_recognition](https://pub.dev/packages/google_mlkit_text_recognition)
+* **Printer:** [blue_thermal_printer](https://pub.dev/packages/blue_thermal_printer)
+* **State:** Provider
+
+## Cara Penggunaan
+
+1. Selesaikan transaksi di e-wallet (DANA / GoPay / SeaBank, dll.).
+2. Tekan **Share / Bagikan** pada bukti transaksi.
+3. Pilih **Konter Print Helper** / Daru Cell.
+4. App membaca OCR → isi form (Transfer / PLN / Lain).
+5. Sesuaikan **Total bayar** (tambah admin jika perlu), lalu **Cetak**.
 
 ## Instalasi & Pengembangan
-Pastikan Anda sudah menginstall Flutter SDK.
 
 ```bash
-# 1. Clone repository
 git clone https://github.com/Ndaru244/konter-print-helper.git
-
-# 2. Masuk ke direktori project
 cd konter-print-helper
-
-# 3. Install library
 flutter pub get
-
-# 4. Jalankan (Wajib menggunakan Device Fisik untuk fitur Bluetooth)
+# Device fisik disarankan untuk Bluetooth + Share Intent
 flutter run
+```
+
+## Lisensi
+
+MIT
