@@ -7,6 +7,7 @@ import "package:cetak_struk/widgets/app_empty_state.dart";
 import "package:cetak_struk/widgets/app_icon_tile.dart";
 import "package:cetak_struk/widgets/app_list_tile.dart";
 import "package:cetak_struk/widgets/app_section_label.dart";
+import "package:cetak_struk/widgets/app_snackbar.dart";
 import "package:cetak_struk/widgets/app_status_banner.dart";
 
 class PrinterSettingPage extends StatefulWidget {
@@ -14,6 +15,12 @@ class PrinterSettingPage extends StatefulWidget {
 
   @override
   State<PrinterSettingPage> createState() => _PrinterSettingPageState();
+}
+
+String _deviceName(String? name, {String empty = "Tidak diketahui"}) {
+  final trimmed = name?.trim();
+  if (trimmed == null || trimmed.isEmpty) return empty;
+  return trimmed;
 }
 
 class _PrinterSettingPageState extends State<PrinterSettingPage> {
@@ -32,7 +39,7 @@ class _PrinterSettingPageState extends State<PrinterSettingPage> {
     final connected = printerService.isConnected;
 
     return Scaffold(
-      appBar: AppBar(title: const Text("Pengaturan Printer")),
+      appBar: AppBar(title: const Text("Printer")),
       body: Column(
         children: [
           Padding(
@@ -45,7 +52,7 @@ class _PrinterSettingPageState extends State<PrinterSettingPage> {
                   : Icons.bluetooth_disabled,
               message: connected ? "Printer Terhubung" : "Printer Terputus",
               subtitle: connected
-                  ? (printerService.selectedPrinter?.name ?? "Unknown")
+                  ? _deviceName(printerService.selectedPrinter?.name)
                   : null,
               trailing: connected
                   ? IconButton(
@@ -100,7 +107,10 @@ class _PrinterSettingPageState extends State<PrinterSettingPage> {
                       return AppListTile(
                         selected: isSelected,
                         leading: const AppIconTile(icon: Icons.print_outlined),
-                        title: device.name ?? "Unknown Device",
+                        title: _deviceName(
+                          device.name,
+                          empty: "Perangkat tidak diketahui",
+                        ),
                         subtitle: device.address ?? "-",
                         trailing: isSelected
                             ? Icon(
@@ -123,15 +133,13 @@ class _PrinterSettingPageState extends State<PrinterSettingPage> {
       bottomNavigationBar: AppBottomBar(
         child: AppButton.secondary(
           icon: Icons.receipt_outlined,
-          label: "TEST PRINT",
+          label: "Tes cetak",
           onPressed: connected
               ? () async {
                   await printerService.testPrint();
                   if (!context.mounted) return;
                   ScaffoldMessenger.of(context).showSnackBar(
-                    const SnackBar(
-                      content: Text("Test print terkirim ke printer!"),
-                    ),
+                    appSnackBar(context, "Tes cetak terkirim ke printer."),
                   );
                 }
               : null,

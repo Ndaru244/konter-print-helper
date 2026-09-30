@@ -2,7 +2,7 @@ name: cetak_struk
 description: "A new Flutter project."
 publish_to: 'none'
 
-version: 1.1.0+2
+version: 0.2.0+4
 
 environment:
   sdk: ">=3.9.0 <4.0.0"
@@ -10,14 +10,18 @@ environment:
 dependencies:
   flutter:
     sdk: flutter
-  google_mlkit_text_recognition: ^0.15.0
+  google_mlkit_text_recognition: ^0.17.1
   path_provider: ^2.1.5
   share_plus: ^13.3.0
-  cupertino_icons: ^1.0.8
+  cupertino_icons: ^2.0.0
   shared_preferences: ^2.5.5
   provider: ^6.1.2
 
   blue_thermal_printer: any
+  package_info_plus: ^10.2.1
+  flutter_markdown_plus: ^1.0.12
+  flex_color_picker: ^4.0.0
+  url_launcher: ^6.3.2
 dependency_overrides:
   blue_thermal_printer:
     path: packages/blue_thermal_printer
@@ -53,3 +57,6 @@ flutter_launcher_icons:
 
 flutter:
   uses-material-design: true
+  assets:
+    - brand.txt
+    - assets/legal/

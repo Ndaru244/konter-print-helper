@@ -10,6 +10,64 @@ class ReceiptPrintLine {
   final int align;
 }
 
+class PrintBatch {
+  const PrintBatch({
+    required this.text,
+    required this.size,
+    required this.align,
+    required this.sourceLines,
+  });
+
+  final String text;
+  final int size;
+  final int align;
+  final int sourceLines;
+}
+
+/// Groups consecutive lines that share size and align.
+///
+/// `printCustom` writes the payload then one ESC/POS line feed (`0x0A`).
+/// A newline inside the payload is the same byte, so grouped lines keep the
+/// original spacing with one method-channel call per group.
+List<PrintBatch> batchPrintLines(List<ReceiptPrintLine> lines) {
+  if (lines.isEmpty) return const [];
+
+  final batches = <PrintBatch>[];
+  var text = StringBuffer(lines.first.text);
+  var size = lines.first.size;
+  var align = lines.first.align;
+  var count = 1;
+
+  void flush() {
+    batches.add(
+      PrintBatch(
+        text: text.toString(),
+        size: size,
+        align: align,
+        sourceLines: count,
+      ),
+    );
+  }
+
+  for (var i = 1; i < lines.length; i++) {
+    final line = lines[i];
+    if (line.size == size && line.align == align) {
+      text
+        ..write('\n')
+        ..write(line.text);
+      count++;
+      continue;
+    }
+    flush();
+    text = StringBuffer(line.text);
+    size = line.size;
+    align = line.align;
+    count = 1;
+  }
+  flush();
+  return batches;
+}
+
 class ReceiptDraft {
   const ReceiptDraft({
     required this.kind,
@@ -51,10 +109,9 @@ List<ReceiptPrintLine> buildReceiptLines(ReceiptDraft draft) {
     case TxKind.transfer:
       lines.addAll(_pair('TRANSFER', _money(draft.nominal)));
       lines.addAll(_pair('Ke', draft.penerima));
+      lines.addAll(_rekeningPair(draft.rekeningOrPhone));
       lines.addAll(_pair('Tanggal', draft.tanggal));
-      lines.addAll(
-        _pair('Dari', '${draft.namaToko} (${draft.sourceApp})'),
-      );
+      lines.addAll(_pair('Dari', '${draft.namaToko} (${draft.sourceApp})'));
     case TxKind.plnToken:
       lines.add(const ReceiptPrintLine('PLN TOKEN', 1, 0));
       lines.addAll(_pair('IDPEL / Meter', draft.noMeterOrIdpel));
@@ -63,11 +120,7 @@ List<ReceiptPrintLine> buildReceiptLines(ReceiptDraft draft) {
         lines
           ..add(_blank())
           ..add(
-            ReceiptPrintLine(
-              formatPlnTokenLine(token),
-              plnTokenPrintSize,
-              1,
-            ),
+            ReceiptPrintLine(formatPlnTokenLine(token), plnTokenPrintSize, 1),
           )
           ..add(_blank());
       }
@@ -103,6 +156,12 @@ ReceiptPrintLine _blank() => const ReceiptPrintLine('', 1, 1);
 
 String? _money(String? raw) => MoneyFormat.normalize(raw);
 
+/// Nomor lengkap, nomor HP, atau topeng aplikasi lain. Label netral
+/// karena isinya tidak selalu rekening atau nomor HP yang utuh.
+List<ReceiptPrintLine> _rekeningPair(String? raw) {
+  return _pair('Transfer ke', raw);
+}
+
 /// Size 1 = Font A (sama dengan TRANSFER / nominal). Size 0 adalah Font B:
 /// 32 karakter tidak sampai tepi kanan, jadi nilai tidak rata kanan.
 List<ReceiptPrintLine> _pair(String label, String? value, {int size = 1}) {
@@ -112,8 +171,38 @@ List<ReceiptPrintLine> _pair(String label, String? value, {int size = 1}) {
   if (gap >= 1) {
     return [ReceiptPrintLine('$label${' ' * gap}$text', size, 0)];
   }
-  return [
-    ReceiptPrintLine(label, size, 0),
-    ReceiptPrintLine(text, size, 0),
-  ];
+  return [ReceiptPrintLine(label, size, 0), ReceiptPrintLine(text, size, 0)];
+}
+
+/// Contoh struk untuk pratinjau nama toko dan catatan, tanpa hasil scan.
+ReceiptDraft previewReceiptDraft({
+  required TxKind kind,
+  required String namaToko,
+  required String catatan,
+}) {
+  final toko = namaToko.trim().isEmpty ? ' ' : namaToko.trim();
+  return switch (kind) {
+    TxKind.plnToken => ReceiptDraft(
+      kind: TxKind.plnToken,
+      namaToko: toko,
+      sourceApp: 'GOPAY',
+      nominal: '100000',
+      noMeterOrIdpel: '12345678901',
+      token: '11112222333344445555',
+      tanggal: '30 Sep 2026',
+      totalBayar: '105000',
+      catatan: catatan,
+    ),
+    _ => ReceiptDraft(
+      kind: TxKind.transfer,
+      namaToko: toko,
+      sourceApp: 'GOPAY',
+      nominal: '50000',
+      penerima: 'Siti Aminah',
+      rekeningOrPhone: '081234567890',
+      tanggal: '30 Sep 2026',
+      totalBayar: '52000',
+      catatan: catatan,
+    ),
+  };
 }

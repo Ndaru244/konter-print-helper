@@ -5,8 +5,9 @@ Aplikasi Android (Flutter) untuk **konter pulsa / PPOB**: ubah bukti transfer at
 ## Isi aplikasi
 
 - **Home** — menunggu resi yang dibagikan dari e-wallet
+- **Printer** — tab bawah: sambung Bluetooth, test print
+- **Pengaturan** — tentang, privasi, lisensi, versi
 - **Edit Struk** — OCR → form Transfer / PLN Token / Lain (bisa dikoreksi), termasuk **total bayar** (nominal + admin konter)
-- **Pengaturan Printer** — sambung Bluetooth, test print
 - **Cetak** — template padat untuk kertas thermal; token PLN satu baris ukuran besar
 
 **Stack:** Flutter · Google ML Kit Text Recognition · `blue_thermal_printer` · Provider
@@ -35,6 +36,14 @@ flutter build apk --release
 ```
 
 APK: `build/app/outputs/flutter-apk/app-release.apk` — atau unduh di [Releases](https://github.com/Ndaru244/konter-print-helper/releases).
+
+## Versi
+
+Ubah nomor hanya di `pubspec.yaml` (`version: X.Y.Z+N`). Layar Tentang dan Pengaturan membaca angka itu lewat `package_info_plus`, jadi tidak perlu menulis versi di kode UI.
+
+## Privasi
+
+Gambar resi dan teks struk diproses di perangkat. Nama toko dan printer yang dipilih tersimpan di HP. Aplikasi tidak mengirim isi struk ke server. Teks yang sama ada di aplikasi: Pengaturan → Kebijakan privasi (`assets/legal/privacy_policy.md`).
 
 ## Lisensi
 

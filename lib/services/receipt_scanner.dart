@@ -146,11 +146,15 @@ class ReceiptScanner {
     if (plnPhrase || (meterHint && _extractToken(text) != null)) {
       return TxKind.plnToken;
     }
+    final parties =
+        RegExp(r'^dari\b', multiLine: true).hasMatch(lower) &&
+        RegExp(r'^ke\b', multiLine: true).hasMatch(lower);
     final transfer =
         lower.contains('kirim uang') ||
         lower.contains('ditransfer ke') ||
         lower.contains('jumlah transfer') ||
-        lower.contains('bukti transaksi');
+        lower.contains('bukti transaksi') ||
+        parties;
     if (transfer) return TxKind.transfer;
     if (_extractToken(text) != null) return TxKind.plnToken;
     return TxKind.other;
@@ -304,10 +308,9 @@ class ReceiptScanner {
         r'^ke\s+(.+)$',
         caseSensitive: false,
       ).firstMatch(line.trim());
-      if (inlineKe != null) {
-        final name = _cleanName(inlineKe.group(1)!);
-        if (name.isNotEmpty && !_looksLikeBank(name)) return name;
-      }
+      if (inlineKe == null) continue;
+      final name = _stripWalletPrefix(_cleanName(inlineKe.group(1)!));
+      if (name.isNotEmpty && !_looksLikeBank(name)) return name;
     }
     final ke = _valueAfter(lines, RegExp(r'^ke$', caseSensitive: false));
     if (ke != null && !_looksLikeBank(ke)) return _cleanName(ke);
@@ -322,24 +325,230 @@ class ReceiptScanner {
     String raw,
     String? penerima,
   ) {
-    final phone = RegExp(r'\b08[\d*]{6,13}\b').firstMatch(raw);
-    if (phone != null) return phone.group(0);
+    final scope = _recipientLines(
+      lines,
+    ).where((line) => !_isSenderWalletId(line)).toList();
+    final labeled = _extractLabeledAccount(scope);
+    if (labeled != null) return labeled;
 
-    final labeled = _valueAfter(
+    final near = _extractNearWallet(scope, penerima);
+    if (near != null) return near;
+
+    return _extractPhone(scope.join('\n'));
+  }
+
+  /// Baris pihak penerima: mulai “Ke”, berhenti sebelum “Dari” / bagian lain.
+  /// Nomor di bawah “Dari” (pengirim) tidak masuk.
+  static List<String> _recipientLines(List<String> lines) {
+    int? ke;
+    for (var i = 0; i < lines.length; i++) {
+      if (_isKeLine(lines[i])) {
+        ke = i;
+        break;
+      }
+    }
+    if (ke == null) return lines;
+    var end = lines.length;
+    for (var i = ke + 1; i < lines.length; i++) {
+      final lower = lines[i].trim().toLowerCase();
+      if (_isDariLine(lower) || _isSectionStop(lower)) {
+        end = i;
+        break;
+      }
+    }
+    return lines.sublist(ke, end);
+  }
+
+  static bool _isKeLine(String line) {
+    final lower = line.trim().toLowerCase();
+    if (RegExp(r'^ke\b').hasMatch(lower) || lower.contains('ditransfer ke')) {
+      return true;
+    }
+    return lower.contains('kirim uang') && RegExp(r'\bke\b').hasMatch(lower);
+  }
+
+  /// ID DANA di header adalah akun pengirim, bukan penerima.
+  static bool _isSenderWalletId(String line) {
+    return RegExp(r'\bid\s+dana\b', caseSensitive: false).hasMatch(line);
+  }
+
+  static bool _isDariLine(String lower) => RegExp(r'^dari\b').hasMatch(lower);
+
+  static bool _isSectionStop(String lower) {
+    return RegExp(
+      r'^(?:jumlah|total|tanggal|waktu|rincian|bukti|status|id transaksi|no\.?\s*transaksi|referensi)\b',
+    ).hasMatch(lower);
+  }
+
+  static String _stripWalletPrefix(String name) {
+    final parts = name.trim().split(RegExp(r'\s+'));
+    if (parts.length >= 2 && _looksLikeBank(parts.first)) {
+      return parts.sublist(1).join(' ');
+    }
+    return name.trim();
+  }
+
+  static String? _extractLabeledAccount(List<String> lines) {
+    final sameLine = RegExp(
+      r'(?:nomor\s*hp|no\.?\s*hp|no\.?\s*rek(?:ening)?|ke\s+rekening|rekening|account|akun(?:\s+dana)?)\s*[:\-]?\s*(.+)$',
+      caseSensitive: false,
+    );
+    for (final line in lines) {
+      final match = sameLine.firstMatch(line.trim());
+      if (match == null) continue;
+      final value = _usableAccountValue(match.group(1)!);
+      if (value != null) return value;
+    }
+
+    final nextLine = _valueAfter(
       lines,
       RegExp(
-        r'^(?:nomor hp|no\.?\s*hp|rekening|no\.?\s*rekening)$',
+        r'^(?:nomor\s*hp|no\.?\s*hp|no\.?\s*rek(?:ening)?|ke\s+rekening|rekening|account|akun(?:\s+dana)?)$',
         caseSensitive: false,
       ),
     );
-    if (labeled != null) return labeled;
+    if (nextLine == null) return null;
+    return _usableAccountValue(nextLine);
+  }
 
-    if (penerima == null) return null;
+  /// Nomor, atau teks berlabel yang memuat nomor. Nama bank saja diabaikan.
+  static String? _usableAccountValue(String raw) {
+    final trimmed = raw.trim();
+    if (trimmed.isEmpty || _looksLikeBank(trimmed)) return null;
+    final phone = _extractPhone(trimmed);
+    if (phone != null) return phone;
+    final mask = _maskedId(trimmed);
+    if (mask != null) {
+      final firstWord = trimmed.split(RegExp(r'\s+')).first;
+      if (_looksLikeBank(firstWord)) return trimmed;
+      return mask;
+    }
+    final run = _accountRun(trimmed);
+    if (run == null) return null;
+    final firstWord = trimmed.split(RegExp(r'\s+')).first;
+    if (_looksLikeBank(firstWord)) return trimmed;
+    return run;
+  }
+
+  static String? _extractPhone(String text) {
+    final match = RegExp(
+      r'(?<!\d)(?:\+?62[\s.\-]*|0)8(?:[\d*xX][\s.\-]?){6,14}(?![\d*xX])',
+      caseSensitive: false,
+    ).firstMatch(text);
+    if (match == null) return null;
+    return _normalizePhone(match.group(0)!);
+  }
+
+  static String _normalizePhone(String raw) {
+    var compact = raw.replaceAll(RegExp(r'[\s.\-]'), '');
+    compact = compact.replaceAll('X', 'x');
+    if (compact.startsWith('+62')) {
+      compact = '0${compact.substring(3)}';
+    } else if (compact.startsWith('62')) {
+      compact = '0${compact.substring(2)}';
+    }
+    if (RegExp(r'^08[\d*x]{6,14}$').hasMatch(compact)) return compact;
+    return raw.trim();
+  }
+
+  static String? _extractNearWallet(List<String> lines, String? penerima) {
+    final indexes = <int>{};
     for (var i = 0; i < lines.length; i++) {
-      if (!_sameName(lines[i], penerima)) continue;
-      if (i + 1 >= lines.length) break;
-      final next = lines[i + 1].trim();
-      if (_looksLikeBank(next)) return next;
+      final line = lines[i];
+      if (penerima != null &&
+          penerima.isNotEmpty &&
+          _sameName(line, penerima)) {
+        final start = i - 1 < 0 ? 0 : i - 1;
+        final end = i + 4 >= lines.length ? lines.length - 1 : i + 4;
+        for (var j = start; j <= end; j++) {
+          indexes.add(j);
+        }
+      }
+      if (_lineMentionsBank(line)) {
+        indexes.add(i);
+        if (i + 1 < lines.length) indexes.add(i + 1);
+      }
+    }
+    final ordered = indexes.toList()..sort();
+    for (final i in ordered) {
+      if (_isIdOrAmountLine(lines[i])) continue;
+      if (i > 0 && _isIdValueLine(lines[i - 1], lines[i])) continue;
+      final found = _walletIdOnLine(lines[i]);
+      if (found != null) return found;
+    }
+    return null;
+  }
+
+  /// GoPay `****891`, HP bertopeng, lalu rekening di baris itu.
+  static String? _walletIdOnLine(String line) {
+    if (_looksLikeBank(line.trim())) return null;
+    final phone = _extractPhone(line);
+    if (phone != null) return phone;
+    final mask = _maskedId(line);
+    if (mask != null) return mask;
+    return _accountRun(line);
+  }
+
+  static String? _maskedId(String text) {
+    final match = RegExp(
+      r'(?<![\d*xX])(\d{0,12}\*{2,}\d{2,}|\d{2,}\*{2,}\d{0,12}|[xX]{2,}\d{2,})(?![\d*xX])',
+    ).firstMatch(text);
+    return match?.group(1);
+  }
+
+  static bool _lineMentionsBank(String line) {
+    final words = line.toLowerCase().split(RegExp(r'[^a-z0-9]+'));
+    const banks = {
+      'bca',
+      'bni',
+      'bri',
+      'mandiri',
+      'ovo',
+      'gopay',
+      'dana',
+      'seabank',
+      'jago',
+      'bsi',
+      'permata',
+      'cimb',
+      'btn',
+    };
+    return words.any(banks.contains);
+  }
+
+  static bool _isIdValueLine(String labelLine, String valueLine) {
+    final lower = labelLine.toLowerCase();
+    final isId =
+        lower.contains('transaksi') ||
+        lower.contains('referensi') ||
+        lower.contains('id order');
+    return isId &&
+        _accountRun(valueLine) != null &&
+        _extractPhone(valueLine) == null;
+  }
+
+  static bool _isIdOrAmountLine(String line) {
+    final lower = line.toLowerCase();
+    return lower.contains('id transaksi') ||
+        lower.contains('no. transaksi') ||
+        lower.contains('no transaksi') ||
+        lower.contains('referensi') ||
+        RegExp(r'\brp\s*[\d.]', caseSensitive: false).hasMatch(line);
+  }
+
+  /// 8–16 digit, bukan potongan token 20 digit atau nominal Rp.
+  static String? _accountRun(String text) {
+    for (final match in RegExp(r'(?<!\d)(\d{8,16})(?!\d)').allMatches(text)) {
+      final value = match.group(1)!;
+      final prefix = text.substring(0, match.start);
+      if (RegExp(r'rp\s*$', caseSensitive: false).hasMatch(prefix)) continue;
+      if (RegExp(
+        r'(?:id\s*transaksi|no\.?\s*transaksi|referensi)\s*$',
+        caseSensitive: false,
+      ).hasMatch(prefix)) {
+        continue;
+      }
+      return value;
     }
     return null;
   }

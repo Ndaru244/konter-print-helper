@@ -110,7 +110,7 @@ Resi ini merupakan bukti
     expect(parsed.sourceApp, 'SEABANK');
     expect(parsed.nominal, 'Rp 46.000');
     expect(parsed.penerima, 'Siti Aminah');
-    expect(parsed.rekeningOrPhone, 'OVO');
+    expect(parsed.rekeningOrPhone, isNull);
     expect(parsed.tanggal, '29 Sep 2026 21:07');
   });
 
@@ -128,6 +128,169 @@ Diamankan oleh DANA PROTECTION
     expect(parsed.sourceApp, 'DANA');
     expect(parsed.nominal, 'Rp 32.000');
     expect(parsed.penerima, 'Budi Santoso');
+    expect(parsed.rekeningOrPhone, isNull);
+  });
+
+  test('DANA memakai akun penerima, bukan ID DANA pengirim', () {
+    const raw = '''
+ODANA
+DANA DANA DANR
+30 Sep 2026 • 16:53 ID DANA 0812•**7691
+Transaksi berhasil!
+Kirim Uang Rp500.000 ke Ernawati -
+085892965320
+Total Bayar Rp500.000
+Metode Pembayaran Saldo DANA
+(SmartPay)
+DANe
+DAN
+Detail Penerima
+Nama Ernawati
+Akun DANA 085892965320
+Detail Transaksi
+ID Transaksi 2026093010121410010
+100166257592792971
+ID Order Merchant 2026093010121410010
+100166257592792970
+Diamankan oleh A DANA
+PROTECTION
+''';
+    final parsed = ReceiptScanner.parseText(raw);
+    expect(parsed.kind, TxKind.transfer);
+    expect(parsed.sourceApp, 'DANA');
+    expect(parsed.penerima, 'Ernawati');
+    expect(parsed.rekeningOrPhone, '085892965320');
+  });
+
+  test('rekening terisi dari label, HP, dan angka di dekat penerima', () {
+    final dana = ReceiptScanner.parseText('''
+DANA
+Kirim Uang Rp32.000 ke Siti Aminah
+Nomor HP +62 812-3456-7890
+Total Bayar
+Rp32.000
+''');
+    expect(dana.rekeningOrPhone, '081234567890');
+    expect(dana.penerima, 'Siti Aminah');
+
+    final gopay = ReceiptScanner.parseText('''
+gopay
+Ditransfer ke Siti Aminah
+0812xxxx7890
+Jumlah Rp50.000
+''');
+    expect(gopay.rekeningOrPhone, '0812xxxx7890');
+
+    final bank = ReceiptScanner.parseText('''
+Bukti Transaksi
+Jumlah Transfer
+Rp200.000
+Ke
+Budi Santoso
+BCA
+No. Rek 8830123456
+ID transaksi
+0420260928132
+''');
+    expect(bank.penerima, 'Budi Santoso');
+    expect(bank.rekeningOrPhone, '8830123456');
+
+    final nearAccount = ReceiptScanner.parseText('''
+Ditransfer ke Budi Santoso
+BCA 5420112233
+Rp50.000
+''');
+    expect(nearAccount.rekeningOrPhone, '5420112233');
+
+    final bankOnly = ReceiptScanner.parseText('''
+Ditransfer ke Siti Aminah
+GoPay
+Rp50.000
+30 Sep 2026 08:48
+''');
+    expect(bankOnly.rekeningOrPhone, isNull);
+  });
+
+  test('SeaBank memakai rekening pihak Ke, bukan Dari', () {
+    final ovo = ReceiptScanner.parseText('''
+Dari Slamet Rahayu
+SeaBank: ********7870
+Ke ovo Somad
+OVO: 0857*****403
+''');
+    expect(ovo.kind, TxKind.transfer);
+    expect(ovo.penerima, 'Somad');
+    expect(ovo.rekeningOrPhone, '0857*****403');
+
+    final bca = ReceiptScanner.parseText('''
+Dari Slamet Rahayu
+SeaBank: ********7870
+Ke Ahmad Farid Sopian
+BANK BCA: ******1466
+''');
+    expect(bca.kind, TxKind.transfer);
+    expect(bca.penerima, 'Ahmad Farid Sopian');
+    expect(bca.rekeningOrPhone, '******1466');
+  });
+
+  test('rekening GoPay bertopeng, SeaBank, dan OVO', () {
+    final gopay = ReceiptScanner.parseText('''
+gopay
+Ditransfer ke Siti Aminah
+GoPay ****891
+Jumlah Rp50.000
+28 Sep 2026
+''');
+    expect(gopay.kind, TxKind.transfer);
+    expect(gopay.penerima, 'Siti Aminah');
+    expect(gopay.rekeningOrPhone, '****891');
+
+    final gopayShort = ReceiptScanner.parseText('''
+gopay
+Ditransfer ke Budi Santoso
+GoPay ***891
+Rp10.000
+''');
+    expect(gopayShort.rekeningOrPhone, '***891');
+
+    final seabank = ReceiptScanner.parseText('''
+SeaBank
+Bukti Transaksi
+Jumlah Transfer
+Rp200.000
+Ke
+Siti Aminah
+BCA
+****56789012
+Dari
+Toko Contoh
+30 Sep 2026 16:18
+ID transaksi
+0420260928132
+''');
+    expect(seabank.sourceApp, 'SEABANK');
+    expect(seabank.penerima, 'Siti Aminah');
+    expect(seabank.rekeningOrPhone, '****56789012');
+
+    final ovoPlain = ReceiptScanner.parseText('''
+Bukti Transaksi
+Jumlah Transfer
+Rp46.000
+Ke
+Budi Santoso
+OVO
+081298765432
+29 Sep 2026 21:07
+''');
+    expect(ovoPlain.rekeningOrPhone, '081298765432');
+
+    final ovoMasked = ReceiptScanner.parseText('''
+DANA
+Kirim Uang Rp32.000 ke Siti Aminah
+OVO
+08***123
+''');
+    expect(ovoMasked.rekeningOrPhone, '08***123');
   });
 
   test('nominal GoPay Rp50.000 tidak terpotong meski titik terpisah spasi', () {
@@ -284,12 +447,13 @@ catatan internal rahasia
         sourceApp: 'DANA',
         nominal: '32000',
         penerima: 'Budi Santoso',
+        rekeningOrPhone: '081234567890',
         tanggal: '30 Sep 2026',
         totalBayar: '35000',
       ),
     );
 
-    for (final label in ['TRANSFER', 'Ke', 'Tanggal', 'Dari']) {
+    for (final label in ['TRANSFER', 'Ke', 'Transfer ke', 'Tanggal', 'Dari']) {
       final row = lines.singleWhere((l) => l.text.startsWith(label));
       expect(row.size, 1, reason: label);
       expect(row.text.length, receiptColumns, reason: label);
@@ -300,5 +464,29 @@ catatan internal rahasia
         isTrue,
       );
     }
+    expect(
+      lines.singleWhere((l) => l.text.startsWith('Transfer ke')).text,
+      contains('081234567890'),
+    );
+  });
+
+  test('nomor bertopeng tercetak dengan label Transfer ke', () {
+    final lines = buildReceiptLines(
+      const ReceiptDraft(
+        kind: TxKind.transfer,
+        namaToko: 'Daru Cell',
+        sourceApp: 'BCA',
+        nominal: '32000',
+        penerima: 'Ahmad',
+        rekeningOrPhone: '******1466',
+        totalBayar: '35000',
+      ),
+    );
+
+    final row = lines.singleWhere((l) => l.text.startsWith('Transfer ke'));
+    expect(row.text, contains('******1466'));
+    expect(row.size, 1);
+    expect(lines.any((l) => l.text.startsWith('No. HP')), isFalse);
+    expect(lines.any((l) => l.text.startsWith('Rekening')), isFalse);
   });
 }

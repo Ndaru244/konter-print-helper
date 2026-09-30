@@ -13,8 +13,11 @@ class AppTextField extends StatelessWidget {
     this.helperText,
     this.keyboardType,
     this.prefixText,
+    this.suffixIcon,
     this.inputFormatters,
     this.selectAllOnTap = false,
+    this.readOnly = false,
+    this.onTap,
   });
 
   /// Papan angka. Awalan Rp, titik ribuan otomatis. Ketuk sekali menyorot semua.
@@ -28,7 +31,10 @@ class AppTextField extends StatelessWidget {
        keyboardType = const TextInputType.numberWithOptions(decimal: false),
        prefixText = "Rp",
        inputFormatters = const [RupiahInputFormatter()],
-       selectAllOnTap = true;
+       selectAllOnTap = true,
+       suffixIcon = null,
+       readOnly = false,
+       onTap = null;
 
   final TextEditingController controller;
   final String label;
@@ -37,8 +43,11 @@ class AppTextField extends StatelessWidget {
   final String? helperText;
   final TextInputType? keyboardType;
   final String? prefixText;
+  final Widget? suffixIcon;
   final List<TextInputFormatter>? inputFormatters;
   final bool selectAllOnTap;
+  final bool readOnly;
+  final VoidCallback? onTap;
 
   @override
   Widget build(BuildContext context) {
@@ -47,17 +56,20 @@ class AppTextField extends StatelessWidget {
       controller: controller,
       minLines: minLines,
       maxLines: maxLines,
-      keyboardType: keyboardType,
+      keyboardType: readOnly ? TextInputType.none : keyboardType,
+      readOnly: readOnly,
+      showCursor: !readOnly,
+      enableInteractiveSelection: !readOnly,
       inputFormatters: inputFormatters,
       style: textStyle,
-      onTap: selectAllOnTap
-          ? () {
-              controller.selection = TextSelection(
-                baseOffset: 0,
-                extentOffset: controller.text.length,
-              );
-            }
-          : null,
+      onTap: () {
+        onTap?.call();
+        if (!selectAllOnTap) return;
+        controller.selection = TextSelection(
+          baseOffset: 0,
+          extentOffset: controller.text.length,
+        );
+      },
       decoration: InputDecoration(
         labelText: label,
         helperText: helperText,
@@ -65,6 +77,7 @@ class AppTextField extends StatelessWidget {
         alignLabelWithHint: minLines > 1,
         prefixText: prefixText == null ? null : "$prefixText ",
         prefixStyle: textStyle,
+        suffixIcon: suffixIcon,
       ),
     );
   }

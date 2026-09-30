@@ -152,7 +152,10 @@ class AppButton extends StatelessWidget {
               return scheme.primary.withValues(alpha: 0.38);
             }
             if (states.contains(WidgetState.pressed)) {
-              return AppColors.primary700;
+              return Color.alphaBlend(
+                Colors.black.withValues(alpha: 0.12),
+                scheme.primary,
+              );
             }
             return scheme.primary;
           }),
@@ -168,9 +171,10 @@ class AppButton extends StatelessWidget {
           tapTargetSize: MaterialTapTargetSize.shrinkWrap,
         ).copyWith(
           side: WidgetStateProperty.resolveWith((states) {
+            final dark = theme.brightness == Brightness.dark;
             final color = states.contains(WidgetState.disabled)
-                ? AppColors.slate200
-                : AppColors.slate300;
+                ? (dark ? AppColors.slate600 : AppColors.slate200)
+                : (dark ? scheme.outline : AppColors.slate300);
             return BorderSide(color: color);
           }),
         ),

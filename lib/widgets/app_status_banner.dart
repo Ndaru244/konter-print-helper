@@ -26,8 +26,11 @@ class AppStatusBanner extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final palette = _paletteFor(tone);
     final theme = Theme.of(context);
+    final palette = _paletteFor(
+      tone,
+      dark: theme.brightness == Brightness.dark,
+    );
     final messageStyle = theme.textTheme.bodyMedium?.copyWith(
       color: palette.text,
       fontWeight: FontWeight.w600,
@@ -70,7 +73,35 @@ class AppStatusBanner extends StatelessWidget {
     );
   }
 
-  static _StatusPalette _paletteFor(AppStatusTone tone) {
+  static _StatusPalette _paletteFor(AppStatusTone tone, {required bool dark}) {
+    if (dark) {
+      return switch (tone) {
+        AppStatusTone.success => const _StatusPalette(
+          background: AppColors.successBackgroundDark,
+          icon: AppColors.successIconDark,
+          text: AppColors.successTextDark,
+          border: AppColors.successBorderDark,
+        ),
+        AppStatusTone.warning => const _StatusPalette(
+          background: AppColors.warningBackgroundDark,
+          icon: AppColors.warningIconDark,
+          text: AppColors.warningTextDark,
+          border: AppColors.warningBorderDark,
+        ),
+        AppStatusTone.danger => const _StatusPalette(
+          background: AppColors.dangerBackgroundDark,
+          icon: AppColors.dangerIconDark,
+          text: AppColors.dangerTextDark,
+          border: AppColors.dangerBorderDark,
+        ),
+        AppStatusTone.info => const _StatusPalette(
+          background: AppColors.infoBackgroundDark,
+          icon: AppColors.infoIconDark,
+          text: AppColors.infoTextDark,
+          border: AppColors.infoBorderDark,
+        ),
+      };
+    }
     return switch (tone) {
       AppStatusTone.success => const _StatusPalette(
         background: AppColors.successBackground,

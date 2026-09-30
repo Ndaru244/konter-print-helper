@@ -1,5 +1,4 @@
 import "package:flutter/material.dart";
-import "package:cetak_struk/theme/app_colors.dart";
 
 /// Baris list: tinggi minimum 56, radius 16, border slate-200.
 /// Terpilih: border primary. Judul titleMedium, subtitle bodyMedium.
@@ -58,7 +57,7 @@ class AppListTile extends StatelessWidget {
                           Text(
                             subtitle!,
                             style: theme.textTheme.bodyMedium?.copyWith(
-                              color: AppColors.slate500,
+                              color: theme.colorScheme.onSurfaceVariant,
                             ),
                           ),
                       ],

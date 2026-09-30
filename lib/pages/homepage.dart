@@ -4,9 +4,8 @@ import "package:flutter/material.dart";
 import "package:flutter/services.dart";
 import "package:provider/provider.dart";
 import "package:cetak_struk/services/printer_service.dart";
-import "package:cetak_struk/pages/settingprinter.dart";
+import "package:cetak_struk/brand.dart";
 import "package:cetak_struk/pages/cetakstruk.dart";
-import "package:cetak_struk/pages/tentangaplikasi.dart";
 import "package:cetak_struk/widgets/app_bottom_bar.dart";
 import "package:cetak_struk/widgets/app_button.dart";
 import "package:cetak_struk/widgets/app_card.dart";
@@ -16,7 +15,13 @@ import "package:cetak_struk/widgets/app_section_label.dart";
 import "package:cetak_struk/widgets/app_status_banner.dart";
 
 class HomePage extends StatefulWidget {
-  const HomePage({super.key});
+  const HomePage({super.key, this.onOpenPrinter, this.tabActive = true});
+
+  /// Membuka tab Printer di shell. Dipakai banner saat printer putus.
+  final VoidCallback? onOpenPrinter;
+
+  /// False saat tab Beranda tertutup IndexedStack. Timer cek printer berhenti.
+  final bool tabActive;
 
   @override
   State<HomePage> createState() => _HomePageState();
@@ -28,6 +33,8 @@ class _HomePageState extends State<HomePage> with WidgetsBindingObserver {
   bool fileReceived = false;
   String? filePath;
   Timer? _connectionTimer;
+  AppLifecycleState _lifecycle = AppLifecycleState.resumed;
+  int? _previewCacheWidth;
 
   @override
   void initState() {
@@ -40,10 +47,19 @@ class _HomePageState extends State<HomePage> with WidgetsBindingObserver {
       _listenOnShare();
     });
 
-    _connectionTimer = Timer.periodic(const Duration(seconds: 10), (_) {
-      if (!mounted) return;
+    _syncConnectionTimer();
+  }
+
+  @override
+  void didUpdateWidget(covariant HomePage oldWidget) {
+    super.didUpdateWidget(oldWidget);
+    if (oldWidget.tabActive == widget.tabActive) return;
+    final showHome =
+        widget.tabActive && _lifecycle == AppLifecycleState.resumed;
+    _syncConnectionTimer();
+    if (showHome && mounted) {
       context.read<PrinterService>().checkConnection();
-    });
+    }
   }
 
   @override
@@ -55,9 +71,34 @@ class _HomePageState extends State<HomePage> with WidgetsBindingObserver {
 
   @override
   void didChangeAppLifecycleState(AppLifecycleState state) {
-    if (state == AppLifecycleState.resumed) {
+    _lifecycle = state;
+    final showHome = state == AppLifecycleState.resumed && widget.tabActive;
+    _syncConnectionTimer();
+    if (showHome && mounted) {
       context.read<PrinterService>().checkConnection();
     }
+  }
+
+  void _syncConnectionTimer() {
+    final run = widget.tabActive && _lifecycle == AppLifecycleState.resumed;
+    if (!run) {
+      _connectionTimer?.cancel();
+      _connectionTimer = null;
+      return;
+    }
+    _connectionTimer ??= Timer.periodic(const Duration(seconds: 10), (_) {
+      if (!mounted) return;
+      context.read<PrinterService>().checkConnection();
+    });
+  }
+
+  void _evictPreview(String? path) {
+    if (path == null) return;
+    final width = _previewCacheWidth;
+    final ImageProvider provider = width == null
+        ? FileImage(File(path))
+        : ResizeImage(FileImage(File(path)), width: width);
+    imageCache.evict(provider);
   }
 
   Future<void> _checkInitialShared() async {
@@ -65,10 +106,7 @@ class _HomePageState extends State<HomePage> with WidgetsBindingObserver {
       final path = await platform.invokeMethod<String>("getInitialShared");
       if (!mounted) return;
       if (path != null && path.isNotEmpty) {
-        setState(() {
-          fileReceived = true;
-          filePath = path;
-        });
+        _showSharedFile(path);
       }
     } on PlatformException catch (e) {
       debugPrint("Error getInitialShared: ${e.message}");
@@ -80,58 +118,47 @@ class _HomePageState extends State<HomePage> with WidgetsBindingObserver {
       if (call.method == "onShare") {
         final path = call.arguments as String?;
         if (path != null && path.isNotEmpty && mounted) {
-          setState(() {
-            fileReceived = true;
-            filePath = path;
-          });
+          _showSharedFile(path);
         }
       }
     });
   }
 
+  void _showSharedFile(String path) {
+    if (filePath != null && filePath != path) _evictPreview(filePath);
+    setState(() {
+      fileReceived = true;
+      filePath = path;
+    });
+  }
+
   void _removeFile() {
+    final path = filePath;
     setState(() {
       fileReceived = false;
       filePath = null;
     });
+    _evictPreview(path);
   }
 
   @override
   Widget build(BuildContext context) {
     final printerService = context.watch<PrinterService>();
     final connected = printerService.isConnected;
+    final openPrinter = widget.onOpenPrinter;
+    final printerName = printerService.selectedPrinter?.name?.trim();
+    final shownName = (printerName == null || printerName.isEmpty)
+        ? "Tidak diketahui"
+        : printerName;
 
     return Scaffold(
-      appBar: AppBar(
-        title: const Text("Daru Cell"),
-        actions: [
-          IconButton(
-            tooltip: "Tentang aplikasi",
-            icon: const Icon(Icons.info_outline),
-            onPressed: () => Navigator.push(
-              context,
-              MaterialPageRoute(builder: (_) => const TentangAplikasiPage()),
-            ),
-          ),
-          IconButton(
-            tooltip: "Pengaturan printer",
-            icon: const Icon(Icons.settings_outlined),
-            onPressed: () => Navigator.push(
-              context,
-              MaterialPageRoute(builder: (_) => const PrinterSettingPage()),
-            ),
-          ),
-        ],
-      ),
+      appBar: AppBar(title: Text(Brand.name)),
       body: Column(
         children: [
-          AppStatusBanner(
-            tone: connected ? AppStatusTone.success : AppStatusTone.danger,
-            center: true,
-            icon: connected ? Icons.check_circle : Icons.warning_amber_rounded,
-            message: connected
-                ? "Printer: ${printerService.selectedPrinter?.name}"
-                : "Printer Tidak Terhubung",
+          _PrinterBanner(
+            connected: connected,
+            printerName: shownName,
+            onOpenPrinter: openPrinter,
           ),
           Expanded(
             child: SingleChildScrollView(
@@ -193,25 +220,28 @@ class _HomePageState extends State<HomePage> with WidgetsBindingObserver {
           child: AppSectionLabel(label: "PANDUAN CEPAT"),
         ),
         _buildGuideItem(
+          1,
           Icons.history,
-          "Buka Riwayat Transaksi",
-          "Cari transaksi yang ingin dicetak di DANA/GoPay.",
+          "Buka resi di e-wallet",
+          "Di DANA, GoPay, Seabank, atau e-wallet lain, buka riwayat lalu pilih transaksi yang mau dicetak.",
         ),
         _buildGuideItem(
+          2,
           Icons.share_outlined,
-          "Klik Bagikan",
-          "Cari ikon share atau 'Bagikan ke Aplikasi Lain'.",
+          "Bagikan gambar resi",
+          "Ketuk Bagikan, lalu pilih ${Brand.name} di daftar aplikasi.",
         ),
         _buildGuideItem(
+          3,
           Icons.touch_app_outlined,
-          "Pilih Daru Cell",
-          "Otomatis struk akan muncul di halaman ini.",
+          "Cetak dari halaman ini",
+          "Gambar muncul di Beranda. Ketuk LANJUT CETAK STRUK di bawah.",
         ),
       ],
     );
   }
 
-  Widget _buildGuideItem(IconData icon, String title, String desc) {
+  Widget _buildGuideItem(int step, IconData icon, String title, String desc) {
     final theme = Theme.of(context);
     return AppCard(
       margin: const EdgeInsets.only(bottom: 12),
@@ -223,7 +253,7 @@ class _HomePageState extends State<HomePage> with WidgetsBindingObserver {
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
-                Text(title, style: theme.textTheme.titleMedium),
+                Text("$step. $title", style: theme.textTheme.titleMedium),
                 const SizedBox(height: 4),
                 Text(desc, style: theme.textTheme.bodyMedium),
               ],
@@ -253,14 +283,72 @@ class _HomePageState extends State<HomePage> with WidgetsBindingObserver {
           padding: const EdgeInsets.all(16),
           child: ClipRRect(
             borderRadius: BorderRadius.circular(8),
-            child: Image.file(
-              File(filePath!),
-              width: double.infinity,
-              fit: BoxFit.fitWidth,
+            child: LayoutBuilder(
+              builder: (context, constraints) {
+                final dpr = MediaQuery.devicePixelRatioOf(context);
+                final logical =
+                    constraints.maxWidth.isFinite && constraints.maxWidth > 0
+                    ? constraints.maxWidth
+                    : MediaQuery.sizeOf(context).width;
+                final cacheWidth = (logical * dpr).round().clamp(1, 4096);
+                _previewCacheWidth = cacheWidth;
+                return Image.file(
+                  File(filePath!),
+                  width: double.infinity,
+                  fit: BoxFit.fitWidth,
+                  cacheWidth: cacheWidth,
+                  gaplessPlayback: true,
+                );
+              },
             ),
           ),
         ),
       ],
+    );
+  }
+}
+
+class _PrinterBanner extends StatelessWidget {
+  const _PrinterBanner({
+    required this.connected,
+    required this.printerName,
+    required this.onOpenPrinter,
+  });
+
+  final bool connected;
+  final String printerName;
+  final VoidCallback? onOpenPrinter;
+
+  @override
+  Widget build(BuildContext context) {
+    final canOpen = !connected && onOpenPrinter != null;
+    final banner = AppStatusBanner(
+      tone: connected ? AppStatusTone.success : AppStatusTone.danger,
+      center: !canOpen,
+      icon: connected ? Icons.check_circle : Icons.warning_amber_rounded,
+      message: connected ? "Printer: $printerName" : "Printer Tidak Terhubung",
+      subtitle: canOpen ? "Ketuk untuk menyambungkan" : null,
+      trailing: canOpen
+          ? Icon(
+              Icons.chevron_right,
+              color: Theme.of(context).colorScheme.error,
+            )
+          : null,
+    );
+    if (!canOpen) return banner;
+    return Semantics(
+      button: true,
+      label: "Printer tidak terhubung. Ketuk untuk menyambungkan.",
+      child: Material(
+        color: Colors.transparent,
+        child: InkWell(
+          onTap: onOpenPrinter,
+          child: ConstrainedBox(
+            constraints: const BoxConstraints(minHeight: 48),
+            child: banner,
+          ),
+        ),
+      ),
     );
   }
 }

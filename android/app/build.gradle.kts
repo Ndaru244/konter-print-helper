@@ -4,10 +4,16 @@ plugins {
     id("dev.flutter.flutter-gradle-plugin")
 }
 
+val brandName = rootProject.file("../brand.txt").readText().trim()
+
 android {
     namespace = "com.example.cetak_struk"
     compileSdk = flutter.compileSdkVersion
     ndkVersion = flutter.ndkVersion
+
+    buildFeatures {
+        resValues = true
+    }
 
     compileOptions {
         sourceCompatibility = JavaVersion.VERSION_17
@@ -23,6 +29,7 @@ android {
         targetSdk = flutter.targetSdkVersion
         versionCode = flutter.versionCode
         versionName = flutter.versionName
+        resValue("string", "app_name", brandName)
     }
 
     buildTypes {

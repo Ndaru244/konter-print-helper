@@ -1,5 +1,4 @@
 import "package:flutter/material.dart";
-import "package:cetak_struk/theme/app_colors.dart";
 
 /// Tile ikon lembut: primary-50, radius 8, ikon primary.
 class AppIconTile extends StatelessWidget {
@@ -10,19 +9,16 @@ class AppIconTile extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final theme = Theme.of(context);
     return Container(
       width: 48,
       height: 48,
       alignment: Alignment.center,
       decoration: BoxDecoration(
-        color: AppColors.primary50,
+        color: theme.colorScheme.primaryContainer,
         borderRadius: BorderRadius.circular(8),
       ),
-      child: Icon(
-        icon,
-        size: iconSize,
-        color: Theme.of(context).colorScheme.primary,
-      ),
+      child: Icon(icon, size: iconSize, color: theme.colorScheme.primary),
     );
   }
 }
